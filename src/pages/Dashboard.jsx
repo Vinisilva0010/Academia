@@ -7,6 +7,9 @@ import AnamneseForm from '../components/client/AnamneseForm'
 import PendingScreen from '../components/client/PendingScreen'
 import DashboardTabs from '../components/client/DashboardTabs'
 import ChatButton from '../components/client/ChatButton'
+import NotificationPrompt from '../components/NotificationPrompt'
+import Toast from '../components/Toast'
+import { useNotification } from '../hooks/useNotification'
 import { getAssessment } from '../utils/assessments'
 
 function DashboardContent() {
@@ -14,8 +17,13 @@ function DashboardContent() {
   const navigate = useNavigate()
   const [assessment, setAssessment] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [formInProgress, setFormInProgress] = useState(false)
+  
+  // Notificações
+  const { foregroundMessage, clearForegroundMessage } = useNotification()
 
-  // Buscar anamnese ao carregar
+  // Buscar anamnese ao carregar - apenas uma vez
   useEffect(() => {
     const fetchAssessment = async () => {
       if (currentUser) {
@@ -36,28 +44,56 @@ function DashboardContent() {
   }
 
   const handleAnamneseSave = async () => {
-    // Recarregar dados do usuário e anamnese
-    if (currentUser) {
-      const assessmentData = await getAssessment(currentUser.uid)
-      setAssessment(assessmentData)
+    setIsSaving(true)
+    setFormInProgress(false) // Formulário foi concluído
+    try {
+      // Aguardar um pouco para garantir que tudo foi salvo no Firestore
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Recarregar perfil do usuário para pegar status atualizado
-      await refreshProfile()
+      // Recarregar dados do usuário e anamnese
+      if (currentUser) {
+        const assessmentData = await getAssessment(currentUser.uid)
+        setAssessment(assessmentData)
+        
+        // Recarregar perfil do usuário para pegar status atualizado
+        await refreshProfile()
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
 
   // Determinar o estado do cliente
   const getClientState = () => {
-    if (!userProfile) return 'loading'
+    if (!userProfile || loading) return 'loading'
     
-    // Se status é 'new' ou não tem anamnese, mostrar formulário
-    if (userProfile.status === 'new' || !assessment) return 'anamnese'
+    // PROTEÇÃO CRÍTICA: Se o formulário está em progresso, SEMPRE mostrar formulário
+    // Isso impede que o Dashboard mude de tela enquanto o usuário está preenchendo
+    if (formInProgress) {
+      return 'anamnese'
+    }
     
-    // Se tem anamnese mas status é pending
-    if (userProfile.status === 'pending') return 'pending'
+    // PRIORIDADE 1: Se status é 'new', SEMPRE mostrar formulário (mesmo se tiver assessment parcial)
+    // Isso garante que o usuário possa completar o formulário mesmo se houver dados parciais
+    if (userProfile.status === 'new') {
+      return 'anamnese'
+    }
     
-    // Se status é active, mostrar dashboard
-    if (userProfile.status === 'active') return 'active'
+    // PRIORIDADE 2: Se não tem anamnese, mostrar formulário
+    if (!assessment) {
+      return 'anamnese'
+    }
+    
+    // PRIORIDADE 3: Se tem anamnese mas status é pending (APENAS se o formulário NÃO estiver em progresso)
+    // Verificação adicional para garantir que não mudamos de tela enquanto o usuário está preenchendo
+    if (userProfile.status === 'pending' && !formInProgress && !isSaving) {
+      return 'pending'
+    }
+    
+    // PRIORIDADE 4: Se status é active, mostrar dashboard
+    if (userProfile.status === 'active') {
+      return 'active'
+    }
     
     // Default: mostrar anamnese
     return 'anamnese'
@@ -65,7 +101,7 @@ function DashboardContent() {
 
   const clientState = getClientState()
 
-  if (loading) {
+  if (loading || isSaving) {
     return (
       <div className="min-h-screen bg-pure-black flex items-center justify-center">
         <div className="text-center">
@@ -119,7 +155,11 @@ function DashboardContent() {
                 Vamos começar preenchendo seu perfil
               </p>
             </div>
-            <AnamneseForm onSave={handleAnamneseSave} />
+            <AnamneseForm 
+              onSave={handleAnamneseSave}
+              onFormStart={() => setFormInProgress(true)}
+              onFormComplete={() => setFormInProgress(false)}
+            />
           </div>
         )}
 
@@ -133,6 +173,10 @@ function DashboardContent() {
               </h2>
               <p className="text-gray-300">Acompanhe seu progresso</p>
             </div>
+            
+            {/* Prompt de Notificações */}
+            <NotificationPrompt />
+            
             <DashboardTabs />
           </div>
         )}
@@ -140,6 +184,14 @@ function DashboardContent() {
 
       {/* Chat Button - Mostrar apenas quando estiver ativo */}
       {clientState === 'active' && <ChatButton />}
+
+      {/* Toast para mensagens em foreground */}
+      {foregroundMessage && (
+        <Toast
+          message={foregroundMessage}
+          onClose={clearForegroundMessage}
+        />
+      )}
     </div>
   )
 }

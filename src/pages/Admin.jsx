@@ -6,6 +6,9 @@ import ProtectedRoute from '../components/ProtectedRoute'
 import StudentList from '../components/admin/StudentList'
 import PlanCreator from '../components/admin/PlanCreator'
 import AdminChatButton from '../components/admin/ChatButton'
+import NotificationPrompt from '../components/NotificationPrompt'
+import Toast from '../components/Toast'
+import { useNotification } from '../hooks/useNotification'
 
 function AdminContent() {
   const { userProfile, logout } = useAuth()
@@ -13,6 +16,9 @@ function AdminContent() {
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [editMode, setEditMode] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  
+  // Notificações
+  const { foregroundMessage, clearForegroundMessage } = useNotification()
 
   const handleLogout = async () => {
     const result = await logout()
@@ -80,6 +86,9 @@ function AdminContent() {
           <p className="text-gray-300">Gerencie alunos e crie planos de treino</p>
         </div>
 
+        {/* Prompt de Notificações */}
+        <NotificationPrompt />
+
         {/* Lista de Alunos */}
         <StudentList 
           key={refreshKey}
@@ -99,6 +108,14 @@ function AdminContent() {
 
         {/* Chat Button */}
         <AdminChatButton />
+
+        {/* Toast para mensagens em foreground */}
+        {foregroundMessage && (
+          <Toast
+            message={foregroundMessage}
+            onClose={clearForegroundMessage}
+          />
+        )}
       </main>
     </div>
   )

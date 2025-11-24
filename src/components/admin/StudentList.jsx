@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Users, AlertCircle, CheckCircle, Mail, User, Edit } from 'lucide-react'
-import { getAllStudents } from '../../utils/admin'
+import { Users, AlertCircle, CheckCircle, Mail, User, Edit, Trash2, Loader2 } from 'lucide-react'
+import { getAllStudents, deleteStudent } from '../../utils/admin'
 
 export default function StudentList({ onSelectStudent, onEditPlan }) {
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadStudents()
@@ -15,6 +18,41 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
     const studentsList = await getAllStudents()
     setStudents(studentsList)
     setLoading(false)
+  }
+
+  const handleDeleteClick = (student) => {
+    setDeleteConfirm(student)
+    setError('')
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm(null)
+    setError('')
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return
+
+    setDeletingId(deleteConfirm.uid)
+    setError('')
+
+    try {
+      const result = await deleteStudent(deleteConfirm.uid)
+      
+      if (result.success) {
+        // Remover aluno da lista localmente
+        setStudents(prev => prev.filter(s => s.uid !== deleteConfirm.uid))
+        setDeleteConfirm(null)
+        // Recarregar lista para garantir consistência
+        await loadStudents()
+      } else {
+        setError(result.error || 'Erro ao deletar aluno')
+      }
+    } catch (err) {
+      setError(err.message || 'Erro ao deletar aluno')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const pendingStudents = students.filter(s => s.status === 'pending')
@@ -99,9 +137,22 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
                         <p className="text-sm text-gray-400">{student.email}</p>
                       </div>
                     </div>
-                    {isPending && (
-                      <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isPending && (
+                        <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteClick(student)
+                        }}
+                        disabled={deletingId === student.uid}
+                        className="p-2 bg-red-900/20 hover:bg-red-900/40 border border-red-800/50 rounded-lg text-red-400 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Excluir aluno"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 mb-3">
@@ -160,6 +211,80 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-red-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-red-900/20 rounded-lg">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black uppercase text-white">
+                  Excluir Aluno
+                </h3>
+                <p className="text-sm text-gray-400">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-300 mb-2">
+                Você está prestes a excluir permanentemente:
+              </p>
+              <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
+                <p className="font-bold text-white">
+                  {deleteConfirm.name || 'Aluno'}
+                </p>
+                <p className="text-sm text-gray-400">{deleteConfirm.email}</p>
+              </div>
+              <p className="text-sm text-red-400 mt-4">
+                ⚠️ Todos os dados relacionados serão deletados:
+              </p>
+              <ul className="text-sm text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                <li>Perfil do usuário</li>
+                <li>Anamnese e avaliações</li>
+                <li>Planos de treino e dieta</li>
+                <li>Histórico de treinos e refeições</li>
+                <li>Mensagens do chat</li>
+              </ul>
+            </div>
+
+            {error && (
+              <div className="mb-4 bg-red-900/20 border border-red-800 text-red-300 rounded-lg p-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deletingId === deleteConfirm.uid}
+                className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold uppercase rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deletingId === deleteConfirm.uid}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingId === deleteConfirm.uid ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Excluir
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

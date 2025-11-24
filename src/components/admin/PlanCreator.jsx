@@ -4,6 +4,7 @@ import { getStudentData, savePlan, updateUserStatus, activateStudent } from '../
 import { getStudentPlan } from '../../utils/plans'
 import { doc, updateDoc, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase'
+import StudentSummary from './StudentSummary'
 
 export default function PlanCreator({ student, onClose, onSuccess, editMode = false }) {
   const [loading, setLoading] = useState(false)
@@ -310,49 +311,10 @@ export default function PlanCreator({ student, onClose, onSuccess, editMode = fa
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Dados da Anamnese */}
-            {assessment && (
-              <div className="card bg-zinc-800/50">
-                <h3 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5 text-neon-blue" />
-                  DADOS DA ANAMNESE
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Scale className="w-5 h-5 text-neon-green" />
-                    <span className="text-gray-300">
-                      <span className="font-bold text-white">Peso:</span> {assessment.peso} kg
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Ruler className="w-5 h-5 text-neon-green" />
-                    <span className="text-gray-300">
-                      <span className="font-bold text-white">Altura:</span> {assessment.altura} cm
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-neon-blue" />
-                    <span className="text-gray-300">
-                      <span className="font-bold text-white">Objetivo:</span> {assessment.objetivo}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-neon-blue" />
-                    <span className="text-gray-300">
-                      <span className="font-bold text-white">Dias:</span> {assessment.diasDisponiveis?.join(', ')}
-                    </span>
-                  </div>
-                  {assessment.lesoes && (
-                    <div className="md:col-span-2 flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-300">
-                        <span className="font-bold text-white">Lesões/Limitações:</span> {assessment.lesoes}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Resumo Completo do Aluno */}
+            <div className="mb-8">
+              <StudentSummary assessment={assessment} student={student} />
+            </div>
 
             {/* Abas Treino/Dieta */}
             <div className="border-b border-zinc-800 mb-6">
