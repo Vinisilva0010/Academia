@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { Bell, X, CheckCircle } from 'lucide-react'
 import { useNotification } from '../hooks/useNotification'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function NotificationPrompt({ onActivated, onDismissed }) {
+  const { userProfile } = useAuth()
   const { permission, loading, requestPermission, isSupported } = useNotification()
   const [dismissed, setDismissed] = useState(false)
+
+  // IMPORTANTE: Mostrar apenas para CLIENTES (não para admin)
+  if (userProfile?.role !== 'client') {
+    return null
+  }
 
   // Se não for suportado ou já foi concedido, não mostrar
   if (!isSupported || permission === 'granted' || dismissed) {

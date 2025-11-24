@@ -86,8 +86,7 @@ function AdminContent() {
           <p className="text-gray-300">Gerencie alunos e crie planos de treino</p>
         </div>
 
-        {/* Prompt de Notificações */}
-        <NotificationPrompt />
+        {/* Prompt de Notificações - REMOVIDO: Admin não precisa */}
 
         {/* Lista de Alunos */}
         <StudentList 

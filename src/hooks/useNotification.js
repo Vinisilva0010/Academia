@@ -8,6 +8,13 @@ import { useAuth } from '../contexts/AuthContext'
 // VAPID Key - Substituir pela sua chave do Firebase Console
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'SUBSTITUA_PELA_SUA_VAPID_KEY'
 
+// Validar VAPID Key
+if (!VAPID_KEY || VAPID_KEY === 'SUBSTITUA_PELA_SUA_VAPID_KEY') {
+  console.warn('⚠️ VAPID Key não configurada! Adicione VITE_FIREBASE_VAPID_KEY no arquivo .env')
+} else {
+  console.log('✅ VAPID Key configurada')
+}
+
 export const useNotification = () => {
   const { currentUser } = useAuth()
   const [permission, setPermission] = useState('default')
@@ -57,12 +64,18 @@ export const useNotification = () => {
         throw new Error('Firebase Messaging não está inicializado')
       }
 
+      if (!VAPID_KEY || VAPID_KEY === 'SUBSTITUA_PELA_SUA_VAPID_KEY') {
+        throw new Error('VAPID Key não configurada. Adicione VITE_FIREBASE_VAPID_KEY no .env')
+      }
+
+      console.log('🔑 Solicitando token FCM...')
       const token = await getToken(messaging, { vapidKey: VAPID_KEY })
       
       if (!token) {
-        throw new Error('Não foi possível obter o token FCM')
+        throw new Error('Não foi possível obter o token FCM. Verifique se a VAPID Key está correta.')
       }
 
+      console.log('✅ Token FCM obtido:', token.substring(0, 20) + '...')
       setFcmToken(token)
 
       // Salvar token no Firestore se usuário estiver logado
@@ -84,16 +97,35 @@ export const useNotification = () => {
     }
   }, [currentUser])
 
-  // Salvar token quando usuário fizer login
+  // Tentar obter token automaticamente quando usuário faz login e já tem permissão
   useEffect(() => {
-    const saveTokenOnLogin = async () => {
-      if (currentUser && fcmToken && permission === 'granted') {
-        await saveFCMToken(currentUser.uid, fcmToken)
+    const initializeToken = async () => {
+      if (!currentUser || !messaging || permission !== 'granted') {
+        return
+      }
+
+      try {
+        // Se ainda não tem token, tentar obter
+        if (!fcmToken) {
+          const token = await getToken(messaging, { vapidKey: VAPID_KEY })
+          if (token) {
+            setFcmToken(token)
+            const saveResult = await saveFCMToken(currentUser.uid, token)
+            if (saveResult.success) {
+              console.log('Token FCM salvo com sucesso')
+            }
+          }
+        } else {
+          // Se já tem token, garantir que está salvo no Firestore
+          await saveFCMToken(currentUser.uid, fcmToken)
+        }
+      } catch (err) {
+        console.error('Erro ao inicializar token FCM:', err)
       }
     }
 
-    saveTokenOnLogin()
-  }, [currentUser, fcmToken, permission])
+    initializeToken()
+  }, [currentUser, messaging, permission, fcmToken])
 
   // Configurar listener para mensagens em foreground
   useEffect(() => {
