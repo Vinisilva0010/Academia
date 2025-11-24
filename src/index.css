@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-pure-black text-white;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-white font-black uppercase tracking-wide;
+  }
+  
+  p {
+    @apply text-gray-300;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-lg p-6;
+  }
+  
+  .btn-primary {
+    @apply bg-neon-blue text-white font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-blue hover:scale-105;
+  }
+  
+  .btn-secondary {
+    @apply bg-neon-green text-white font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-green hover:scale-105;
+  }
+}
+
+@layer utilities {
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .animate-spin-slow {
+    animation: spin-slow 3s linear infinite;
+  }
+}
+
