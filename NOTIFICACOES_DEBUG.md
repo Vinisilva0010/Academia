@@ -172,3 +172,5 @@ Se todos os itens estiverem marcados e ainda não funcionar, verifique:
 - Regras de segurança do Firestore
 - Logs de erro no console do navegador
 
+
+

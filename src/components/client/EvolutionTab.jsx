@@ -108,8 +108,8 @@ export default function EvolutionTab() {
                         style={{
                           height: `${height}%`,
                           minHeight: '10px',
-                          background: 'linear-gradient(to top, #22c55e, #3b82f6)',
-                          boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)'
+                          background: 'linear-gradient(to top, #10B981, #059669)',
+                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
                         }}
                         title={`${entry.weight} kg - ${formatDateFull(entry.date)}`}
                       />

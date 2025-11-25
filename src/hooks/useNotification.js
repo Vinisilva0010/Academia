@@ -138,7 +138,7 @@ export const useNotification = () => {
       
       // Mostrar toast/mensagem na interface
       setForegroundMessage({
-        title: payload.notification?.title || 'ApexFit Pro',
+        title: payload.notification?.title || 'Immersion Fit',
         body: payload.notification?.body || 'Você tem uma nova mensagem',
         data: payload.data || {}
       })

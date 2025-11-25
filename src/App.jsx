@@ -3,6 +3,8 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Admin from './pages/Admin'
 import Dashboard from './pages/Dashboard'
+import StudentDetails from './pages/StudentDetails'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   return (
@@ -11,6 +13,14 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
+        <Route 
+          path="/admin/student/:studentId" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <StudentDetails />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/dashboard" element={<Dashboard />} />
         {/* Redirecionar rotas não encontradas */}
         <Route path="*" element={<Navigate to="/" replace />} />

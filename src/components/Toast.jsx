@@ -36,7 +36,7 @@ export default function Toast({ message, onClose, autoClose = 5000 }) {
         
         <div className="flex-1 min-w-0">
           <h4 className="font-black uppercase text-white text-sm mb-1">
-            {message.title || 'ApexFit Pro'}
+            {message.title || 'Immersion Fit'}
           </h4>
           <p className="text-gray-300 text-sm">
             {message.body || message.message || 'Você tem uma nova notificação'}
@@ -54,4 +54,6 @@ export default function Toast({ message, onClose, autoClose = 5000 }) {
     </div>
   )
 }
+
+
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Users, AlertCircle, CheckCircle, Mail, User, Edit, Trash2, Loader2 } from 'lucide-react'
 import { getAllStudents, deleteStudent } from '../../utils/admin'
+import Avatar from '../Avatar'
+import { useNavigate } from 'react-router-dom'
 
 export default function StudentList({ onSelectStudent, onEditPlan }) {
   const [students, setStudents] = useState([])
@@ -8,6 +10,7 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
   const [deletingId, setDeletingId] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [error, setError] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     loadStudents()
@@ -119,22 +122,25 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
               return (
                 <div
                   key={student.uid}
-                  className={`card cursor-pointer transition-all hover:scale-105 ${
+                  onClick={() => navigate(`/admin/student/${student.uid}`)}
+                  className={`card cursor-pointer transition-all hover:scale-105 hover:border-neon-green/50 ${
                     isPending
                       ? 'border-yellow-500 border-2 shadow-lg shadow-yellow-500/20'
                       : 'border-zinc-800'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-zinc-800 rounded-lg">
-                        <User className="w-5 h-5 text-neon-blue" />
-                      </div>
-                      <div>
-                        <h4 className="font-black uppercase text-white">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar 
+                        name={student.name || student.email} 
+                        photoUrl={student.photoUrl}
+                        size="md"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-black uppercase text-white truncate">
                           {student.name || 'Aluno'}
                         </h4>
-                        <p className="text-sm text-gray-400">{student.email}</p>
+                        <p className="text-sm text-gray-400 truncate">{student.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -178,9 +184,10 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
                       e.stopPropagation()
                       if (isActive && onEditPlan) {
                         onEditPlan(student)
-                      } else {
+                      } else if (isPending) {
                         onSelectStudent(student)
                       }
+                      // Caso contrário, o clique no card já leva para detalhes
                     }}
                     className={`w-full flex items-center justify-center gap-2 ${
                       isPending 

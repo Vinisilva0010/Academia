@@ -25,7 +25,7 @@ export default function Home() {
       <div className="flex items-center justify-center mb-8">
         <Dumbbell className="w-12 h-12 text-neon-blue mr-4" />
         <h1 className="text-5xl font-black uppercase tracking-wider">
-          APEXFIT PRO
+          IMMERSION FIT
         </h1>
       </div>
       

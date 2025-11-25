@@ -58,7 +58,7 @@ function AdminContent() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Dumbbell className="w-8 h-8 text-neon-blue" />
-            <h1 className="text-2xl font-black uppercase">APEXFIT PRO</h1>
+            <h1 className="text-2xl font-black uppercase">IMMERSION FIT</h1>
           </div>
           
           <div className="flex items-center gap-4">

@@ -23,11 +23,11 @@
   }
   
   .btn-primary {
-    @apply bg-neon-blue text-white font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-blue hover:scale-105;
+    @apply border border-neon-green text-neon-green bg-transparent font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-green hover:scale-105 hover:bg-neon-green/10;
   }
   
   .btn-secondary {
-    @apply bg-neon-green text-white font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-green hover:scale-105;
+    @apply border border-neon-green text-neon-green bg-transparent font-bold uppercase px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-green hover:scale-105 hover:bg-neon-green/10;
   }
 }
 

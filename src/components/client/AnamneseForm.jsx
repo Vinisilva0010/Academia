@@ -74,6 +74,7 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
     ingestaoAlcool: '',
     
     // Passo 3: Histórico de Treino e Saúde
+    estaTreinando: '',
     tempoTreino: '',
     localTreino: '',
     lesoes: '',
@@ -209,7 +210,8 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
         ingestaoAlcool: formData.ingestaoAlcool || null,
         
         // Passo 3
-        tempoTreino: formData.tempoTreino || null,
+        estaTreinando: formData.estaTreinando || null,
+        tempoTreino: formData.estaTreinando === 'Sim' ? (formData.tempoTreino || null) : null,
         localTreino: formData.localTreino || null,
         lesoes: formData.lesoes || 'Nenhuma',
         medicamentos: formData.medicamentos || null,
@@ -377,6 +379,7 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
           <option value="">Selecione</option>
           <option value="Sedentário">Sedentário</option>
           <option value="Leve">Leve</option>
+          <option value="Moderado">Moderado</option>
           <option value="Pesado">Pesado</option>
         </select>
       </div>
@@ -464,6 +467,7 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
           required
         >
           <option value="">Selecione</option>
+          <option value="2">2 refeições</option>
           <option value="3">3 refeições</option>
           <option value="4">4 refeições</option>
           <option value="5">5 refeições</option>
@@ -554,25 +558,65 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
         </div>
       </div>
 
-      {/* Tempo de Treino */}
+      {/* Você está treinando atualmente? */}
       <div>
-        <label className="flex items-center gap-2 text-white font-bold mb-2 uppercase text-sm tracking-wide">
+        <label className="flex items-center gap-2 text-white font-bold mb-3 uppercase text-sm tracking-wide">
           <Dumbbell className="w-5 h-5 text-neon-green" />
-          Tempo de Treino
+          Você está treinando atualmente? *
         </label>
-        <select
-          value={formData.tempoTreino}
-          onChange={(e) => handleInputChange('tempoTreino', e.target.value)}
-          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue"
-          disabled={loading}
-        >
-          <option value="">Selecione</option>
-          <option value="Sedentário">Sedentário</option>
-          <option value="Menos de 1 ano">Menos de 1 ano</option>
-          <option value="1-3 anos">1-3 anos</option>
-          <option value="Mais de 3 anos">Mais de 3 anos</option>
-        </select>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="radio"
+              name="estaTreinando"
+              value="Sim"
+              checked={formData.estaTreinando === 'Sim'}
+              onChange={(e) => handleInputChange('estaTreinando', e.target.value)}
+              disabled={loading}
+              className="w-5 h-5 text-neon-blue bg-zinc-800 border-zinc-700 focus:ring-neon-blue focus:ring-2"
+            />
+            <span className="text-white font-medium group-hover:text-neon-green transition-colors">
+              Sim
+            </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="radio"
+              name="estaTreinando"
+              value="Não"
+              checked={formData.estaTreinando === 'Não'}
+              onChange={(e) => handleInputChange('estaTreinando', e.target.value)}
+              disabled={loading}
+              className="w-5 h-5 text-neon-blue bg-zinc-800 border-zinc-700 focus:ring-neon-blue focus:ring-2"
+            />
+            <span className="text-white font-medium group-hover:text-neon-green transition-colors">
+              Não
+            </span>
+          </label>
+        </div>
       </div>
+
+      {/* Tempo de Treino - Condicional */}
+      {formData.estaTreinando === 'Sim' && (
+        <div>
+          <label className="flex items-center gap-2 text-white font-bold mb-2 uppercase text-sm tracking-wide">
+            <Dumbbell className="w-5 h-5 text-neon-blue" />
+            Tempo de Treino
+          </label>
+          <select
+            value={formData.tempoTreino}
+            onChange={(e) => handleInputChange('tempoTreino', e.target.value)}
+            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue"
+            disabled={loading}
+          >
+            <option value="">Selecione</option>
+            <option value="Sedentário">Sedentário</option>
+            <option value="Menos de 1 ano">Menos de 1 ano</option>
+            <option value="1-3 anos">1-3 anos</option>
+            <option value="Mais de 3 anos">Mais de 3 anos</option>
+          </select>
+        </div>
+      )}
 
       {/* Local de Treino */}
       <div>
@@ -608,7 +652,7 @@ export default function AnamneseForm({ onSave, onFormStart, onFormComplete }) {
           placeholder="Descreva qualquer lesão, limitação ou observação importante. Se não houver, deixe em branco."
           disabled={loading}
         />
-        <p className="text-xs text-red-400 mt-1">⚠️ Importante: Informe todas as lesões ou dores para seu próprio segurança</p>
+        <p className="text-xs text-red-400 mt-1">Para a sua própria segurança, detalhe qualquer dor ou lesão</p>
       </div>
 
       {/* Medicamentos */}

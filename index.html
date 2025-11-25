@@ -10,25 +10,49 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <meta name="apple-mobile-web-app-title" content="ApexFit" />
+    <meta name="apple-mobile-web-app-title" content="Immersion Fit" />
     
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <title>ApexFit Pro - Consultoria Fitness</title>
+    <title>Immersion Fit - Consultoria Fitness</title>
     
     <!-- Register Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          // Registrar Service Worker para notificações push
+          navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+            scope: '/'
+          })
             .then((registration) => {
-              console.log('SW registered: ', registration);
+              console.log('✅ Service Worker registrado com sucesso:', registration.scope);
+              console.log('📱 Service Worker ativo:', registration.active ? 'Sim' : 'Não');
+              console.log('🔄 Service Worker esperando:', registration.waiting ? 'Sim' : 'Não');
+              console.log('📥 Service Worker instalando:', registration.installing ? 'Sim' : 'Não');
+              
+              // Verificar atualizações periodicamente
+              setInterval(() => {
+                registration.update();
+              }, 60000); // Verificar a cada minuto
             })
             .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+              console.error('❌ Erro ao registrar Service Worker:', registrationError);
+              console.error('Detalhes:', {
+                name: registrationError.name,
+                message: registrationError.message,
+                stack: registrationError.stack
+              });
             });
+
+          // Listener para atualizações do Service Worker
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Service Worker atualizado! Recarregando...');
+            window.location.reload();
+          });
         });
+      } else {
+        console.warn('⚠️ Service Workers não são suportados neste navegador');
       }
     </script>
   </head>

@@ -2,6 +2,7 @@ import {
   collection, 
   doc, 
   getDoc, 
+  getDocs,
   setDoc, 
   onSnapshot,
   query,
@@ -269,6 +270,65 @@ export const subscribeToWorkoutLog = (userId, trainingName, callback, date = nul
   )
 
   return unsubscribe
+}
+
+/**
+ * Buscar todos os workout logs de um usuário (histórico completo)
+ * @param {string} userId - UID do usuário
+ * @returns {Promise<Array>} Array de logs ordenados por data (mais recente primeiro)
+ */
+export const getAllWorkoutLogs = async (userId) => {
+  try {
+    if (!userId) return []
+
+    const workoutLogsRef = collection(db, 'users', userId, 'workout_logs')
+    const snapshot = await getDocs(workoutLogsRef)
+    
+    const logs = []
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      if (data.completedExerciseIds && data.completedExerciseIds.length > 0) {
+        logs.push({
+          id: doc.id,
+          date: data.date,
+          trainingName: data.trainingName,
+          completedExerciseIds: data.completedExerciseIds || [],
+          exerciseDetails: data.exerciseDetails || {},
+          updatedAt: data.updatedAt
+        })
+      }
+    })
+
+    // Ordenar por data (mais recente primeiro)
+    logs.sort((a, b) => {
+      const dateA = a.date || ''
+      const dateB = b.date || ''
+      return dateB.localeCompare(dateA) // Ordem descendente
+    })
+
+    return logs
+  } catch (error) {
+    console.error('Erro ao buscar histórico de treinos:', error)
+    return []
+  }
+}
+
+/**
+ * Buscar workout logs de um dia específico
+ * @param {string} userId - UID do usuário
+ * @param {string} date - Data no formato YYYY-MM-DD
+ * @returns {Promise<Array>} Array de logs do dia
+ */
+export const getWorkoutLogsByDate = async (userId, date) => {
+  try {
+    if (!userId || !date) return []
+
+    const allLogs = await getAllWorkoutLogs(userId)
+    return allLogs.filter(log => log.date === date)
+  } catch (error) {
+    console.error('Erro ao buscar logs por data:', error)
+    return []
+  }
 }
 
 

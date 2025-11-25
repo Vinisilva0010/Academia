@@ -1,22 +1,41 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, MessageCircle, User, Users, AlertCircle } from 'lucide-react'
+import { X, Send, MessageCircle, User, Users, AlertCircle, Paperclip, Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToConversation, sendMessage, markMessagesAsRead } from '../../utils/messages'
 import { getAllStudents } from '../../utils/admin'
+import { uploadChatImage, isValidImageFile } from '../../utils/imageUpload'
+import ImageModal from '../ImageModal'
 
-export default function AdminChatWindow({ onClose }) {
+export default function AdminChatWindow({ onClose, initialStudent = null, initialMessage = '' }) {
   const { currentUser } = useAuth()
-  const [selectedStudent, setSelectedStudent] = useState(null)
+  const [selectedStudent, setSelectedStudent] = useState(initialStudent || null)
   const [students, setStudents] = useState([])
   const [messages, setMessages] = useState([])
-  const [newMessage, setNewMessage] = useState('')
+  const [newMessage, setNewMessage] = useState(initialMessage || '')
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [previewImage, setPreviewImage] = useState(null)
+  const [modalImage, setModalImage] = useState(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
-  // Carregar lista de alunos
+  // Definir aluno inicial se passado via props
   useEffect(() => {
+    if (initialStudent && !selectedStudent) {
+      setSelectedStudent(initialStudent)
+    }
+  }, [initialStudent])
+
+  // Carregar lista de alunos (apenas se não passou aluno inicial)
+  useEffect(() => {
+    if (initialStudent) {
+      // Se passou aluno inicial, não precisa carregar lista completa
+      return
+    }
+
     const loadStudents = async () => {
       console.log('[AdminChatWindow] Carregando alunos...')
       const studentsList = await getAllStudents()
@@ -29,7 +48,17 @@ export default function AdminChatWindow({ onClose }) {
       }
     }
     loadStudents()
-  }, [])
+  }, [initialStudent])
+
+  // Preencher mensagem inicial quando passar via props
+  useEffect(() => {
+    if (initialMessage && inputRef.current) {
+      setNewMessage(initialMessage)
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 200)
+    }
+  }, [initialMessage, selectedStudent])
 
   // Subscrever mensagens quando selecionar aluno
   useEffect(() => {
@@ -78,28 +107,75 @@ export default function AdminChatWindow({ onClose }) {
     }
   }, [selectedStudent])
 
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!isValidImageFile(file)) {
+      setError('Por favor, selecione uma imagem válida (JPG, PNG, GIF, WebP) com no máximo 5MB')
+      return
+    }
+
+    setSelectedImage(file)
+    setError('')
+
+    // Criar preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPreviewImage(reader.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setPreviewImage(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSend = async (e) => {
     e.preventDefault()
-    if (!newMessage.trim() || !currentUser || !selectedStudent || loading) {
+    if ((!newMessage.trim() && !selectedImage) || !currentUser || !selectedStudent || loading || uploading) {
       console.warn('[AdminChatWindow] Tentativa de envio bloqueada')
       return
     }
 
     setLoading(true)
     setError('')
+    let imageUrl = null
+
+    // Upload de imagem se houver
+    if (selectedImage) {
+      setUploading(true)
+      const uploadResult = await uploadChatImage(selectedImage, currentUser.uid)
+      
+      if (!uploadResult.success) {
+        setError(uploadResult.error || 'Erro ao fazer upload da imagem')
+        setLoading(false)
+        setUploading(false)
+        return
+      }
+
+      imageUrl = uploadResult.url
+      setUploading(false)
+    }
     
     console.log('[AdminChatWindow] Enviando mensagem:', {
       senderId: currentUser.uid,
       receiverId: selectedStudent.uid,
-      text: newMessage.substring(0, 50)
+      text: newMessage.substring(0, 50),
+      hasImage: !!imageUrl
     })
     
     // CRÍTICO: Admin envia para aluno
-    const result = await sendMessage(currentUser.uid, selectedStudent.uid, newMessage)
+    const result = await sendMessage(currentUser.uid, selectedStudent.uid, newMessage || '', imageUrl)
     
     if (result.success) {
       console.log('[AdminChatWindow] Mensagem enviada com sucesso')
       setNewMessage('')
+      handleRemoveImage()
       inputRef.current?.focus()
     } else {
       console.error('[AdminChatWindow] Erro ao enviar:', result.error)
@@ -137,8 +213,9 @@ export default function AdminChatWindow({ onClose }) {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Lista de Alunos */}
-        <div className="w-48 border-r border-zinc-800 overflow-y-auto bg-zinc-950">
+        {/* Lista de Alunos - Ocultar se passou aluno inicial */}
+        {!initialStudent && (
+          <div className="w-48 border-r border-zinc-800 overflow-y-auto bg-zinc-950">
           <div className="p-3 border-b border-zinc-800 bg-zinc-900">
             <p className="text-xs font-bold uppercase text-gray-400">Alunos</p>
           </div>
@@ -169,10 +246,11 @@ export default function AdminChatWindow({ onClose }) {
               <p>Nenhum aluno</p>
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className={initialStudent ? "w-full flex flex-col" : "flex-1 flex flex-col"}>
           {selectedStudent ? (
             <>
               {/* Header do Aluno Selecionado */}
@@ -218,9 +296,21 @@ export default function AdminChatWindow({ onClose }) {
                               : 'bg-zinc-800 text-gray-200'
                           }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {message.text}
-                          </p>
+                          {message.imageUrl && (
+                            <div className="mb-2">
+                              <img
+                                src={message.imageUrl}
+                                alt="Imagem enviada"
+                                className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => setModalImage(message.imageUrl)}
+                              />
+                            </div>
+                          )}
+                          {message.text && (
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {message.text}
+                            </p>
+                          )}
                           <p
                             className={`text-xs mt-1 ${
                               isMine ? 'text-blue-100' : 'text-gray-400'
@@ -238,7 +328,46 @@ export default function AdminChatWindow({ onClose }) {
 
               {/* Input */}
               <form onSubmit={handleSend} className="p-4 border-t border-zinc-800 bg-zinc-900 rounded-b-lg">
+                {/* Preview da imagem */}
+                {previewImage && (
+                  <div className="mb-2 relative inline-block">
+                    <div className="relative">
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="max-w-32 max-h-32 rounded-lg object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 rounded-full text-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading || uploading}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Anexar imagem"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-5 h-5" />
+                    )}
+                  </button>
                   <input
                     ref={inputRef}
                     type="text"
@@ -246,14 +375,18 @@ export default function AdminChatWindow({ onClose }) {
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Digite sua mensagem..."
                     className="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-neon-blue"
-                    disabled={loading}
+                    disabled={loading || uploading}
                   />
                   <button
                     type="submit"
-                    disabled={loading || !newMessage.trim()}
+                    disabled={loading || uploading || (!newMessage.trim() && !selectedImage)}
                     className="btn-primary p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Send className="w-5 h-5" />
+                    {loading || uploading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </form>
@@ -268,6 +401,14 @@ export default function AdminChatWindow({ onClose }) {
           )}
         </div>
       </div>
+
+      {/* Modal de Imagem */}
+      {modalImage && (
+        <ImageModal
+          imageUrl={modalImage}
+          onClose={() => setModalImage(null)}
+        />
+      )}
     </div>
   )
 }

@@ -17,11 +17,12 @@ import { db } from '../firebase'
  * @param {string} senderId - UID do remetente
  * @param {string} receiverId - UID do destinatário
  * @param {string} text - Texto da mensagem
+ * @param {string} imageUrl - URL da imagem (opcional)
  * @returns {Promise<{success: boolean, error?: string, messageId?: string}>}
  */
-export const sendMessage = async (senderId, receiverId, text) => {
+export const sendMessage = async (senderId, receiverId, text, imageUrl = null) => {
   try {
-    console.log('[sendMessage] Iniciando envio:', { senderId, receiverId, text: text.substring(0, 50) })
+    console.log('[sendMessage] Iniciando envio:', { senderId, receiverId, text: text?.substring(0, 50), hasImage: !!imageUrl })
     
     if (!senderId || !receiverId) {
       console.error('[sendMessage] IDs inválidos:', { senderId, receiverId })
@@ -31,20 +32,26 @@ export const sendMessage = async (senderId, receiverId, text) => {
       }
     }
 
-    if (!text.trim()) {
+    // Validar que a mensagem tem texto ou imagem
+    if (!text?.trim() && !imageUrl) {
       return {
         success: false,
-        error: 'A mensagem não pode estar vazia'
+        error: 'A mensagem deve conter texto ou uma imagem'
       }
     }
 
     const messagesRef = collection(db, 'messages')
     const messageData = {
-      text: text.trim(),
+      text: text?.trim() || '',
       senderId,
       receiverId,
       timestamp: serverTimestamp(),
       read: false
+    }
+
+    // Adicionar imageUrl se existir
+    if (imageUrl) {
+      messageData.imageUrl = imageUrl
     }
     
     console.log('[sendMessage] Dados da mensagem:', messageData)

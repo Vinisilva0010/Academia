@@ -123,7 +123,7 @@ function DashboardContent() {
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Dumbbell className="w-8 h-8 text-neon-green" />
-              <h1 className="text-2xl font-black uppercase">APEXFIT PRO</h1>
+              <h1 className="text-2xl font-black uppercase">IMMERSION FIT</h1>
             </div>
             
             <div className="flex items-center gap-4">
@@ -149,7 +149,7 @@ function DashboardContent() {
           <div>
             <div className="mb-8 text-center">
               <h2 className="text-4xl font-black uppercase mb-2">
-                BEM-VINDO AO APEXFIT PRO
+                BEM-VINDO AO IMMERSION FIT
               </h2>
               <p className="text-gray-300">
                 Vamos começar preenchendo seu perfil

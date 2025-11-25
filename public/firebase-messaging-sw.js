@@ -18,29 +18,51 @@ firebase.initializeApp(firebaseConfig);
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+console.log('[firebase-messaging-sw.js] Service Worker iniciado e Firebase configurado');
 
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'ApexFit Pro';
+// Handle background messages (quando o app está fechado)
+messaging.onBackgroundMessage((payload) => {
+  console.log('[firebase-messaging-sw.js] 📨 Mensagem recebida em background:', payload);
+
+  // Extrair título e corpo da notificação
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'Immersion Fit';
   const notificationBody = payload.notification?.body || payload.data?.body || 'Você tem uma nova mensagem';
   
+  // Preparar opções da notificação
   const notificationOptions = {
     body: notificationBody,
-    icon: '/icons/icon-192x192.png', // Usar ícone local
+    icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
-    tag: payload.data?.messageId || payload.data?.senderId || 'apexfit-notification',
+    tag: payload.data?.messageId || payload.data?.senderId || `apexfit-${Date.now()}`,
     requireInteraction: false,
+    silent: false,
     data: {
       ...payload.data,
       click_action: payload.fcmOptions?.link || '/',
-      url: payload.data?.url || '/'
+      url: payload.data?.url || '/',
+      // Preservar dados originais
+      messageId: payload.data?.messageId,
+      senderId: payload.data?.senderId,
+      receiverId: payload.data?.receiverId
     },
     vibrate: [200, 100, 200],
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    // Configurações adicionais para melhor compatibilidade
+    renotify: true,
+    dir: 'ltr',
+    lang: 'pt-BR'
   };
 
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  console.log('[firebase-messaging-sw.js] 🚀 Exibindo notificação:', notificationTitle);
+  
+  // Exibir a notificação
+  return self.registration.showNotification(notificationTitle, notificationOptions)
+    .then(() => {
+      console.log('[firebase-messaging-sw.js] ✅ Notificação exibida com sucesso');
+    })
+    .catch((error) => {
+      console.error('[firebase-messaging-sw.js] ❌ Erro ao exibir notificação:', error);
+    });
 });
 
 // Handle notification clicks

@@ -5,6 +5,7 @@ import { getStudentPlan } from '../../utils/plans'
 import { doc, updateDoc, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase'
 import StudentSummary from './StudentSummary'
+import { exercisesDB, getMuscleGroups, getExercisesByGroup, findExercise } from '../../data/exercisesDB'
 
 export default function PlanCreator({ student, onClose, onSuccess, editMode = false }) {
   const [loading, setLoading] = useState(false)
@@ -51,7 +52,18 @@ export default function PlanCreator({ student, onClose, onSuccess, editMode = fa
         setExistingPlan(plan)
         // Carregar treinos existentes
         if (plan.trainings && plan.trainings.length > 0) {
-          setTrainings(plan.trainings)
+          // Normalizar exercícios: garantir que todos tenham os campos necessários
+          const normalizedTrainings = plan.trainings.map(training => ({
+            ...training,
+            exercises: training.exercises.map(exercise => ({
+              name: exercise.name || '',
+              muscleGroup: exercise.muscleGroup || (exercise.name ? findExercise(exercise.name) : ''),
+              sets: exercise.sets || '',
+              recommendedWeight: exercise.recommendedWeight || '',
+              videoUrl: exercise.videoUrl || ''
+            }))
+          }))
+          setTrainings(normalizedTrainings)
           setActiveTrainingTab(0)
         }
         // Carregar dieta existente
@@ -147,7 +159,9 @@ export default function PlanCreator({ student, onClose, onSuccess, editMode = fa
     const updatedTrainings = [...trainings]
     updatedTrainings[trainingIndex].exercises.push({
       name: '',
+      muscleGroup: '',
       sets: '',
+      recommendedWeight: '',
       videoUrl: ''
     })
     setTrainings(updatedTrainings)
@@ -425,59 +439,115 @@ export default function PlanCreator({ student, onClose, onSuccess, editMode = fa
                         </div>
 
                         <div className="space-y-3">
-                          {training.exercises.map((exercise, exerciseIndex) => (
-                            <div
-                              key={exerciseIndex}
-                              className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 space-y-3"
-                            >
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
-                                    Nome do Exercício
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={exercise.name}
-                                    onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'name', e.target.value)}
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
-                                    placeholder="Ex: Supino Reto"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
-                                    Séries e Repetições
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={exercise.sets}
-                                    onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'sets', e.target.value)}
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
-                                    placeholder="Ex: 4x8"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
-                                  Link do Vídeo (YouTube/Vimeo)
-                                </label>
-                                <input
-                                  type="url"
-                                  value={exercise.videoUrl}
-                                  onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'videoUrl', e.target.value)}
-                                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
-                                  placeholder="https://www.youtube.com/watch?v=..."
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => removeExercise(trainingIndex, exerciseIndex)}
-                                className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
+                          {training.exercises.map((exercise, exerciseIndex) => {
+                            // Tentar identificar o grupo muscular do exercício se já tiver nome
+                            const currentMuscleGroup = exercise.muscleGroup || (exercise.name ? findExercise(exercise.name) : '')
+                            const availableExercises = currentMuscleGroup ? getExercisesByGroup(currentMuscleGroup) : []
+                            
+                            return (
+                              <div
+                                key={exerciseIndex}
+                                className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 space-y-3"
                               >
-                                <Trash2 className="w-4 h-4" />
-                                Remover Exercício
-                              </button>
-                            </div>
-                          ))}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* Grupo Muscular */}
+                                  <div>
+                                    <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
+                                      Grupo Muscular
+                                    </label>
+                                    <select
+                                      value={currentMuscleGroup}
+                                      onChange={(e) => {
+                                        const group = e.target.value
+                                        updateExercise(trainingIndex, exerciseIndex, 'muscleGroup', group)
+                                        // Limpar o nome do exercício quando mudar o grupo
+                                        if (group !== currentMuscleGroup) {
+                                          updateExercise(trainingIndex, exerciseIndex, 'name', '')
+                                        }
+                                      }}
+                                      className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
+                                    >
+                                      <option value="">Selecione o grupo</option>
+                                      {getMuscleGroups().map((group) => (
+                                        <option key={group} value={group}>
+                                          {group}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  {/* Exercício */}
+                                  <div>
+                                    <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
+                                      Exercício
+                                    </label>
+                                    <select
+                                      value={exercise.name}
+                                      onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'name', e.target.value)}
+                                      disabled={!currentMuscleGroup}
+                                      className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <option value="">
+                                        {currentMuscleGroup ? 'Selecione o exercício' : 'Selecione primeiro o grupo'}
+                                      </option>
+                                      {availableExercises.map((ex) => (
+                                        <option key={ex} value={ex}>
+                                          {ex}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* Séries e Repetições */}
+                                  <div>
+                                    <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
+                                      Séries e Repetições
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={exercise.sets || ''}
+                                      onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'sets', e.target.value)}
+                                      className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
+                                      placeholder="Ex: 4x8"
+                                    />
+                                  </div>
+                                  {/* Recomendação de Carga/Peso */}
+                                  <div>
+                                    <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
+                                      Recomendação de Carga/Peso
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={exercise.recommendedWeight || ''}
+                                      onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'recommendedWeight', e.target.value)}
+                                      className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
+                                      placeholder="Ex: 20-25kg"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-bold uppercase text-gray-300 mb-1">
+                                    Link do Vídeo (YouTube/Vimeo)
+                                  </label>
+                                  <input
+                                    type="url"
+                                    value={exercise.videoUrl || ''}
+                                    onChange={(e) => updateExercise(trainingIndex, exerciseIndex, 'videoUrl', e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-neon-blue"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeExercise(trainingIndex, exerciseIndex)}
+                                  className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Remover Exercício
+                                </button>
+                              </div>
+                            )
+                          })}
                           <button
                             type="button"
                             onClick={() => addExercise(trainingIndex)}

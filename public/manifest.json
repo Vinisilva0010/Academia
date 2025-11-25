@@ -1,6 +1,6 @@
 {
-    "name": "ApexFit Pro",
-    "short_name": "ApexFit",
+    "name": "Immersion Fit",
+    "short_name": "Immersion Fit",
     "description": "Consultoria Fitness Personalizada - Seu Personal Trainer Digital",
     "start_url": "/",
     "display": "standalone",
@@ -38,3 +38,4 @@
       }
     ]
   }
+

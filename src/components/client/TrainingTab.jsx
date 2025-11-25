@@ -298,7 +298,7 @@ export default function TrainingTab() {
           </div>
           <div className="w-full bg-zinc-800 rounded-full h-6 overflow-hidden border border-zinc-700 relative">
             <div
-              className="h-full bg-gradient-to-r from-neon-green to-neon-blue transition-all duration-500 ease-out flex items-center justify-end pr-2"
+              className="h-full bg-gradient-to-r from-neon-green to-neon-green/80 transition-all duration-500 ease-out flex items-center justify-end pr-2"
               style={{ width: `${progress.percentage}%` }}
             >
               {progress.percentage > 15 && (
@@ -390,7 +390,14 @@ export default function TrainingTab() {
                             <h5 className={`font-bold mb-2 ${completed ? 'line-through text-gray-400' : 'text-white'}`}>
                               {exercicio.name}
                             </h5>
-                            <p className="text-sm text-gray-400 mb-3">{exercicio.sets}</p>
+                            <div className="flex flex-col gap-1 mb-3">
+                              <p className="text-sm text-gray-400">{exercicio.sets}</p>
+                              {exercicio.recommendedWeight && (
+                                <p className="text-xs text-neon-blue font-semibold">
+                                  💪 Recomendado: {exercicio.recommendedWeight}
+                                </p>
+                              )}
+                            </div>
 
                             {/* Inputs de Carga e Reps */}
                             <div className="grid grid-cols-2 gap-3 mt-3">
