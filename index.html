@@ -23,13 +23,41 @@
         window.addEventListener('load', () => {
           // Registrar Service Worker para notificações push
           navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-            scope: '/'
+            scope: '/',
+            updateViaCache: 'none' // Sempre buscar versão mais recente
           })
             .then((registration) => {
               console.log('✅ Service Worker registrado com sucesso:', registration.scope);
-              console.log('📱 Service Worker ativo:', registration.active ? 'Sim' : 'Não');
-              console.log('🔄 Service Worker esperando:', registration.waiting ? 'Sim' : 'Não');
-              console.log('📥 Service Worker instalando:', registration.installing ? 'Sim' : 'Não');
+              
+              // Se há um Service Worker instalando, aguardar ele ativar
+              if (registration.installing) {
+                console.log('📥 Service Worker instalando...');
+                registration.installing.addEventListener('statechange', (e) => {
+                  if (e.target.state === 'activated') {
+                    console.log('✅ Service Worker ativado!');
+                    // Forçar o Service Worker a assumir controle imediatamente
+                    if (registration.waiting) {
+                      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                  }
+                });
+              }
+              
+              // Se há um Service Worker esperando, ativar imediatamente
+              if (registration.waiting) {
+                console.log('🔄 Service Worker esperando, ativando...');
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
+              
+              // Se já há um Service Worker ativo, usar ele
+              if (registration.active) {
+                console.log('✅ Service Worker já está ativo');
+              }
+              
+              // Aguardar Service Worker estar pronto
+              navigator.serviceWorker.ready.then(() => {
+                console.log('✅ Service Worker pronto para uso');
+              });
               
               // Verificar atualizações periodicamente
               setInterval(() => {
@@ -47,8 +75,13 @@
 
           // Listener para atualizações do Service Worker
           navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('🔄 Service Worker atualizado! Recarregando...');
-            window.location.reload();
+            console.log('🔄 Service Worker controller mudou - novo Service Worker está ativo');
+            // Não recarregar automaticamente, apenas logar
+          });
+          
+          // Listener para mensagens do Service Worker
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            console.log('📨 Mensagem recebida do Service Worker:', event.data);
           });
         });
       } else {

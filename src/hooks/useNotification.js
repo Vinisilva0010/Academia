@@ -5,8 +5,53 @@ import { onMessage } from 'firebase/messaging'
 import { saveFCMToken, removeFCMToken, isNotificationSupported, getNotificationPermission } from '../utils/notifications'
 import { useAuth } from '../contexts/AuthContext'
 
-// VAPID Key - Substituir pela sua chave do Firebase Console
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'SUBSTITUA_PELA_SUA_VAPID_KEY'
+// VAPID Key - Priorizar variável de ambiente, fallback para chave hardcoded
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BLiizzjXylh39OBojoYlnz6_ELZQgeDokF3SdqedGzd8BL2XJdGjJVpJjLiEuEiQEGnPCj7TjqhDriTQLOMSf-0";
+
+/**
+ * Aguarda o Service Worker estar ativo antes de prosseguir
+ * @param {number} maxWait - Tempo máximo de espera em milissegundos
+ * @returns {Promise<boolean>}
+ */
+const waitForServiceWorker = async (maxWait = 10000) => {
+  if (!('serviceWorker' in navigator)) {
+    return false
+  }
+
+  const startTime = Date.now()
+  
+  return new Promise((resolve) => {
+    const checkServiceWorker = () => {
+      if (navigator.serviceWorker.controller) {
+        console.log('✅ Service Worker ativo')
+        resolve(true)
+        return
+      }
+
+      // Verificar registrations
+      navigator.serviceWorker.ready.then((registration) => {
+        if (registration.active) {
+          console.log('✅ Service Worker pronto')
+          resolve(true)
+          return
+        }
+      }).catch(() => {
+        // Continuar tentando
+      })
+
+      if (Date.now() - startTime > maxWait) {
+        console.warn('⚠️ Timeout aguardando Service Worker')
+        resolve(false)
+        return
+      }
+
+      // Tentar novamente após 500ms
+      setTimeout(checkServiceWorker, 500)
+    }
+
+    checkServiceWorker()
+  })
+}
 
 // Validar VAPID Key
 if (!VAPID_KEY || VAPID_KEY === 'SUBSTITUA_PELA_SUA_VAPID_KEY') {
@@ -68,6 +113,14 @@ export const useNotification = () => {
         throw new Error('VAPID Key não configurada. Adicione VITE_FIREBASE_VAPID_KEY no .env')
       }
 
+      // Aguardar Service Worker estar ativo
+      console.log('⏳ Aguardando Service Worker estar pronto...')
+      const swReady = await waitForServiceWorker(10000)
+      
+      if (!swReady) {
+        console.warn('⚠️ Service Worker não está ativo ainda, mas tentando obter token...')
+      }
+
       console.log('🔑 Solicitando token FCM...')
       const token = await getToken(messaging, { vapidKey: VAPID_KEY })
       
@@ -104,27 +157,71 @@ export const useNotification = () => {
         return
       }
 
+      // Aguardar Service Worker estar ativo
+      const swReady = await waitForServiceWorker(10000)
+      if (!swReady) {
+        console.warn('⚠️ Service Worker não está ativo, tentando obter token mesmo assim...')
+        // Continuar tentando, mas pode falhar
+      }
+
       try {
         // Se ainda não tem token, tentar obter
         if (!fcmToken) {
-          const token = await getToken(messaging, { vapidKey: VAPID_KEY })
+          console.log('🔑 Tentando obter token FCM...')
+          
+          // Tentar com retry
+          let token = null
+          let attempts = 0
+          const maxAttempts = 3
+          
+          while (!token && attempts < maxAttempts) {
+            attempts++
+            try {
+              token = await getToken(messaging, { vapidKey: VAPID_KEY })
+              if (token) {
+                console.log('✅ Token FCM obtido com sucesso na tentativa', attempts)
+                break
+              }
+            } catch (err) {
+              console.warn(`⚠️ Tentativa ${attempts} falhou:`, err.message)
+              if (attempts < maxAttempts) {
+                // Aguardar antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempts))
+              } else {
+                throw err
+              }
+            }
+          }
+          
           if (token) {
             setFcmToken(token)
             const saveResult = await saveFCMToken(currentUser.uid, token)
             if (saveResult.success) {
-              console.log('Token FCM salvo com sucesso')
+              console.log('✅ Token FCM salvo no Firestore')
             }
+          } else {
+            console.warn('⚠️ Não foi possível obter token FCM após', maxAttempts, 'tentativas')
           }
         } else {
           // Se já tem token, garantir que está salvo no Firestore
           await saveFCMToken(currentUser.uid, fcmToken)
         }
       } catch (err) {
-        console.error('Erro ao inicializar token FCM:', err)
+        // Só logar o erro, não mostrar para o usuário (não é crítico)
+        if (err.message && !err.message.includes('no active Service Worker')) {
+          console.error('❌ Erro ao inicializar token FCM:', err.message)
+        } else {
+          console.warn('⚠️ Service Worker ainda não está pronto. O token será obtido quando estiver.')
+        }
       }
     }
 
-    initializeToken()
+    // Aguardar um pouco antes de tentar inicializar (dar tempo para o SW ativar)
+    const timeout = setTimeout(() => {
+      initializeToken()
+    }, 2000)
+
+    return () => clearTimeout(timeout)
   }, [currentUser, messaging, permission, fcmToken])
 
   // Configurar listener para mensagens em foreground

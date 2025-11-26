@@ -4,12 +4,14 @@ import { useAuth } from '../contexts/AuthContext'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../firebase'
 import { createOrUpdateUser } from '../utils/firestore'
-import { LogIn, Mail, Lock, Loader2, AlertCircle, UserPlus } from 'lucide-react'
+import { LogIn, Mail, Lock, Loader2, AlertCircle, UserPlus, User } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState('login') // 'login' ou 'signup'
@@ -63,8 +65,20 @@ export default function Login() {
     setLoading(true)
 
     // Validações
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !firstName || !lastName) {
       setError('Por favor, preencha todos os campos')
+      setLoading(false)
+      return
+    }
+
+    if (firstName.trim().length < 2) {
+      setError('O nome deve ter pelo menos 2 caracteres')
+      setLoading(false)
+      return
+    }
+
+    if (lastName.trim().length < 2) {
+      setError('O sobrenome deve ter pelo menos 2 caracteres')
       setLoading(false)
       return
     }
@@ -87,8 +101,10 @@ export default function Login() {
       const user = userCredential.user
 
       // 2. CRÍTICO: Criar documento no Firestore imediatamente
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim()
       const userData = {
         email: email,
+        name: fullName,
         role: 'client',
         status: 'new'
       }
@@ -138,6 +154,8 @@ export default function Login() {
     setError('')
     setPassword('')
     setConfirmPassword('')
+    setFirstName('')
+    setLastName('')
   }
 
   return (
@@ -146,7 +164,7 @@ export default function Login() {
         <div className="flex items-center justify-center mb-8">
           {mode === 'login' ? (
             <>
-              <LogIn className="w-10 h-10 text-neon-blue mr-3" />
+              <LogIn className="w-10 h-10 text-neon-green mr-3" />
               <h1 className="text-3xl font-black uppercase tracking-wide">
                 LOGIN
               </h1>
@@ -162,6 +180,48 @@ export default function Login() {
         </div>
 
         <form onSubmit={mode === 'login' ? handleLogin : handleSignUp} className="space-y-6">
+          {mode === 'signup' && (
+            <>
+              <div>
+                <label className="block text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide">
+                  Nome
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
+                    placeholder="Seu nome"
+                    disabled={loading}
+                    required
+                    minLength={2}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide">
+                  Sobrenome
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
+                    placeholder="Seu sobrenome"
+                    disabled={loading}
+                    required
+                    minLength={2}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div>
             <label className="block text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide">
               Email
@@ -172,7 +232,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
                 placeholder="seu@email.com"
                 disabled={loading}
                 required
@@ -190,7 +250,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
                 placeholder="••••••••"
                 disabled={loading}
                 required
@@ -213,7 +273,7 @@ export default function Login() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green"
                   placeholder="••••••••"
                   disabled={loading}
                   required
@@ -271,7 +331,7 @@ export default function Login() {
             type="button"
             onClick={switchMode}
             disabled={loading}
-            className="text-neon-blue hover:text-neon-green font-bold uppercase text-sm transition-colors"
+            className="text-neon-green hover:text-neon-green/80 font-bold uppercase text-sm transition-colors"
           >
             {mode === 'login' ? 'Cadastre-se' : 'Fazer Login'}
           </button>

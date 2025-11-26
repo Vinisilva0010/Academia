@@ -77,7 +77,7 @@ export default function ChatWindow({ onClose }) {
         console.log('[ChatWindow] Mensagens recebidas:', conversationMessages.length)
         setMessages(conversationMessages)
         
-        // Marcar mensagens como lidas quando receber novas
+        // Marcar mensagens como lidas quando chat abrir ou receber novas mensagens
         if (conversationMessages.length > 0) {
           markMessagesAsRead(currentUser.uid, adminInfo.uid).catch(err => {
             console.error('[ChatWindow] Erro ao marcar como lida:', err)
@@ -85,6 +85,11 @@ export default function ChatWindow({ onClose }) {
         }
       }
     )
+
+    // Marcar mensagens como lidas imediatamente quando o chat abrir
+    markMessagesAsRead(currentUser.uid, adminInfo.uid).catch(err => {
+      console.error('[ChatWindow] Erro ao marcar como lida na abertura:', err)
+    })
 
     return () => {
       console.log('[ChatWindow] Limpando subscription')
@@ -150,41 +155,64 @@ export default function ChatWindow({ onClose }) {
     setError('')
     let imageUrl = null
 
-    // Upload de imagem se houver
-    if (selectedImage) {
-      setUploading(true)
-      const uploadResult = await uploadChatImage(selectedImage, currentUser.uid)
-      
-      if (!uploadResult.success) {
-        setError(uploadResult.error || 'Erro ao fazer upload da imagem')
-        setLoading(false)
-        setUploading(false)
-        return
-      }
+    try {
+      // Upload de imagem se houver
+      if (selectedImage) {
+        setUploading(true)
+        console.log('[ChatWindow] Iniciando upload da imagem...')
+        
+        try {
+          const uploadResult = await uploadChatImage(selectedImage, currentUser.uid)
+          
+          if (!uploadResult.success) {
+            throw new Error(uploadResult.error || 'Erro ao fazer upload da imagem')
+          }
 
-      imageUrl = uploadResult.url
+          imageUrl = uploadResult.url
+          console.log('[ChatWindow] Upload concluído:', imageUrl)
+        } catch (uploadError) {
+          console.error('[ChatWindow] Erro no upload:', uploadError)
+          let errorMsg = uploadError.message || 'Erro ao fazer upload da imagem'
+          
+          // Melhorar mensagem de erro de CORS
+          if (errorMsg.includes('CORS') || errorMsg.includes('ERR_FAILED')) {
+            errorMsg = 'Erro de configuração: Configure as regras do Firebase Storage. Veja FIREBASE_STORAGE_RULES.md'
+          }
+          
+          setError(errorMsg)
+          setLoading(false)
+          setUploading(false)
+          return
+        } finally {
+          setUploading(false)
+        }
+      }
+      
+      console.log('[ChatWindow] Enviando mensagem:', {
+        senderId: currentUser.uid,
+        receiverId: adminInfo.uid,
+        text: newMessage.substring(0, 50),
+        hasImage: !!imageUrl
+      })
+      
+      const result = await sendMessage(currentUser.uid, adminInfo.uid, newMessage || '', imageUrl)
+      
+      if (result.success) {
+        console.log('[ChatWindow] Mensagem enviada com sucesso')
+        setNewMessage('')
+        handleRemoveImage()
+        inputRef.current?.focus()
+      } else {
+        console.error('[ChatWindow] Erro ao enviar:', result.error)
+        setError(result.error || 'Erro ao enviar mensagem')
+      }
+    } catch (error) {
+      console.error('[ChatWindow] Erro inesperado:', error)
+      setError(error.message || 'Erro ao enviar mensagem')
+    } finally {
+      setLoading(false)
       setUploading(false)
     }
-    
-    console.log('[ChatWindow] Enviando mensagem:', {
-      senderId: currentUser.uid,
-      receiverId: adminInfo.uid,
-      text: newMessage.substring(0, 50),
-      hasImage: !!imageUrl
-    })
-    
-    const result = await sendMessage(currentUser.uid, adminInfo.uid, newMessage || '', imageUrl)
-    
-    if (result.success) {
-      console.log('[ChatWindow] Mensagem enviada com sucesso')
-      setNewMessage('')
-      handleRemoveImage()
-      inputRef.current?.focus()
-    } else {
-      console.error('[ChatWindow] Erro ao enviar:', result.error)
-      setError(result.error || 'Erro ao enviar mensagem')
-    }
-    setLoading(false)
   }
 
   const formatTime = (timestamp) => {
@@ -288,20 +316,30 @@ export default function ChatWindow({ onClose }) {
       <form onSubmit={handleSend} className="p-4 border-t border-zinc-800 bg-zinc-900 rounded-b-lg">
         {/* Preview da imagem */}
         {previewImage && (
-          <div className="mb-2 relative inline-block">
-            <div className="relative">
-              <img
-                src={previewImage}
-                alt="Preview"
-                className="max-w-32 max-h-32 rounded-lg object-cover"
-              />
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 rounded-full text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          <div className="mb-3 relative inline-block">
+            <div className="relative border border-zinc-700 rounded-lg p-2 bg-zinc-800">
+              <div className="relative">
+                <img
+                  src={previewImage}
+                  alt="Preview"
+                  className="max-w-32 max-h-32 rounded-lg object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  disabled={loading || uploading}
+                  className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 rounded-full text-white transition-colors disabled:opacity-50"
+                  title="Remover imagem"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {uploading && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-neon-green">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Enviando imagem...</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -315,13 +353,17 @@ export default function ChatWindow({ onClose }) {
           />
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (!loading && !uploading && adminInfo) {
+                fileInputRef.current?.click()
+              }
+            }}
             disabled={loading || uploading || !adminInfo}
             className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Anexar imagem"
+            title={uploading ? "Enviando imagem..." : "Anexar imagem"}
           >
             {uploading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin text-neon-green" />
             ) : (
               <Paperclip className="w-5 h-5" />
             )}
@@ -339,6 +381,7 @@ export default function ChatWindow({ onClose }) {
             type="submit"
             disabled={loading || uploading || (!newMessage.trim() && !selectedImage) || !adminInfo}
             className="btn-primary p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={uploading ? "Enviando imagem..." : loading ? "Enviando mensagem..." : "Enviar"}
           >
             {loading || uploading ? (
               <Loader2 className="w-5 h-5 animate-spin" />

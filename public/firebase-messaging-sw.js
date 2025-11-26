@@ -20,6 +20,33 @@ const messaging = firebase.messaging();
 
 console.log('[firebase-messaging-sw.js] Service Worker iniciado e Firebase configurado');
 
+// Service Worker lifecycle events
+self.addEventListener('install', (event) => {
+  console.log('[firebase-messaging-sw.js] 📥 Service Worker instalando...');
+  // Forçar ativação imediata, pulando a fase de "waiting"
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[firebase-messaging-sw.js] ✅ Service Worker ativando...');
+  // Assumir controle de todos os clients imediatamente
+  event.waitUntil(
+    self.clients.claim().then(() => {
+      console.log('[firebase-messaging-sw.js] ✅ Service Worker assumiu controle de todos os clients');
+    })
+  );
+});
+
+// Listener para mensagens do cliente (ex: SKIP_WAITING)
+self.addEventListener('message', (event) => {
+  console.log('[firebase-messaging-sw.js] 📨 Mensagem recebida:', event.data);
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[firebase-messaging-sw.js] 🚀 Pulando fase de waiting...');
+    self.skipWaiting();
+  }
+});
+
 // Handle background messages (quando o app está fechado)
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] 📨 Mensagem recebida em background:', payload);
