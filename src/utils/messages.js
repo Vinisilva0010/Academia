@@ -8,7 +8,8 @@ import {
   doc, 
   updateDoc,
   getDocs,
-  serverTimestamp 
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -269,38 +270,67 @@ export const subscribeToUnreadMessages = (userId, callback) => {
 }
 
 /**
- * Marcar mensagens como lidas
- * @param {string} userId - UID do usuário que está marcando como lida
- * @param {string} otherUserId - UID do outro usuário na conversa
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Marcar mensagens como lidas usando Batch Update
+ * @param {string} userId - UID do usuário que está marcando como lida (receiverId)
+ * @param {string} senderId - UID do remetente das mensagens (senderId)
+ * @returns {Promise<{success: boolean, error?: string, count?: number}>}
  */
-export const markMessagesAsRead = async (userId, otherUserId) => {
+export const markMessagesAsRead = async (userId, senderId) => {
   try {
-    console.log('[markMessagesAsRead] Marcando mensagens como lidas:', { userId, otherUserId })
+    if (!userId || !senderId) {
+      console.warn('[markMessagesAsRead] IDs inválidos:', { userId, senderId })
+      return { success: false, error: 'IDs de usuário inválidos' }
+    }
+
+    console.log('[markMessagesAsRead] Marcando mensagens como lidas:', { userId, senderId })
     
     const messagesRef = collection(db, 'messages')
     const q = query(
       messagesRef,
-      where('senderId', '==', otherUserId),
+      where('senderId', '==', senderId),
       where('receiverId', '==', userId),
       where('read', '==', false)
     )
 
     const snapshot = await getDocs(q)
-    const updatePromises = []
+    
+    // Se não há mensagens não lidas, retornar sucesso
+    if (snapshot.empty) {
+      console.log('[markMessagesAsRead] Nenhuma mensagem não lida para marcar')
+      return { success: true, count: 0 }
+    }
 
-    snapshot.forEach((doc) => {
-      updatePromises.push(
-        updateDoc(doc.ref, { read: true })
-      )
-    })
+    // Usar Batch Update para garantir atomicidade
+    // Firestore Batch tem limite de 500 operações por batch
+    const docs = snapshot.docs
+    const batchSize = 500
+    let totalUpdated = 0
 
-    await Promise.all(updatePromises)
-    console.log('[markMessagesAsRead] Mensagens marcadas como lidas:', updatePromises.length)
+    // Processar em lotes de 500
+    for (let i = 0; i < docs.length; i += batchSize) {
+      const batch = writeBatch(db)
+      const batchDocs = docs.slice(i, i + batchSize)
+      
+      batchDocs.forEach((docSnapshot) => {
+        const messageRef = doc(messagesRef, docSnapshot.id)
+        batch.update(messageRef, { read: true })
+      })
+      
+      await batch.commit()
+      totalUpdated += batchDocs.length
+      console.log(`[markMessagesAsRead] Batch ${Math.floor(i / batchSize) + 1} atualizado: ${batchDocs.length} mensagens`)
+    }
 
-    return { success: true }
+    console.log('[markMessagesAsRead] ✅ Total de mensagens marcadas como lidas:', totalUpdated)
+    return { success: true, count: totalUpdated }
   } catch (error) {
-    console.error('[markMessagesAsRead] Erro ao marcar mensagens como lidas:', error)
+    console.error('[markMessagesAsRead] ❌ Erro ao marcar mensagens como lidas:', error)
+    console.error('[markMessagesAsRead] Detalhes:', {
+      code: error.code,
+      message: error.message,
+      userId,
+      senderId
+    })
     return {
       success: false,
       error: error.message || 'Erro ao marcar mensagens como lidas'

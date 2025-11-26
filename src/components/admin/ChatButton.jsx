@@ -10,13 +10,23 @@ export default function AdminChatButton() {
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUser) {
+      setUnreadCount(0)
+      return
+    }
+
+    console.log('[ChatButton Admin] Iniciando subscription de mensagens não lidas para:', currentUser.uid)
 
     const unsubscribe = subscribeToUnreadMessages(currentUser.uid, (messages) => {
-      setUnreadCount(messages.length)
+      const count = messages.length
+      console.log('[ChatButton Admin] Mensagens não lidas atualizadas:', count)
+      setUnreadCount(count)
     })
 
-    return unsubscribe
+    return () => {
+      console.log('[ChatButton Admin] Limpando subscription')
+      unsubscribe()
+    }
   }, [currentUser])
 
   return (

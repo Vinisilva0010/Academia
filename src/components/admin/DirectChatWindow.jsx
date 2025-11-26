@@ -33,27 +33,63 @@ export default function DirectChatWindow({ student, initialMessage = '', onClose
   useEffect(() => {
     if (!currentUser || !student) return
 
+    let hasMarkedAsRead = false // Flag para evitar marcar múltiplas vezes
+
     const unsubscribe = subscribeToConversation(
       currentUser.uid,
       student.uid,
       (conversationMessages) => {
         setMessages(conversationMessages)
         
-        // Marcar mensagens como lidas quando chat abrir ou receber novas mensagens
-        if (conversationMessages.length > 0) {
-          markMessagesAsRead(student.uid, currentUser.uid).catch(err => {
-            console.error('[DirectChatWindow] Erro ao marcar como lida:', err)
-          })
+        // Verificar se há mensagens não lidas do aluno para o admin
+        const unreadFromStudent = conversationMessages.filter(
+          msg => msg.senderId === student.uid && 
+                 msg.receiverId === currentUser.uid && 
+                 !msg.read
+        )
+        
+        // Marcar como lidas apenas se houver mensagens não lidas E ainda não marcou
+        if (unreadFromStudent.length > 0 && !hasMarkedAsRead) {
+          console.log('[DirectChatWindow] Marcando', unreadFromStudent.length, 'mensagens como lidas')
+          hasMarkedAsRead = true
+          
+          // userId = quem está recebendo (admin), senderId = quem enviou (aluno)
+          markMessagesAsRead(currentUser.uid, student.uid)
+            .then(result => {
+              if (result.success) {
+                console.log('[DirectChatWindow] ✅ Mensagens marcadas como lidas:', result.count)
+              }
+              setTimeout(() => {
+                hasMarkedAsRead = false
+              }, 2000)
+            })
+            .catch(err => {
+              console.error('[DirectChatWindow] Erro ao marcar como lida:', err)
+              hasMarkedAsRead = false
+            })
         }
       }
     )
 
     // Marcar mensagens como lidas imediatamente quando o chat abrir
-    markMessagesAsRead(student.uid, currentUser.uid).catch(err => {
-      console.error('[DirectChatWindow] Erro ao marcar como lida na abertura:', err)
-    })
+    const markTimer = setTimeout(() => {
+      console.log('[DirectChatWindow] Marcando mensagens como lidas na abertura')
+      // userId = quem está recebendo (admin), senderId = quem enviou (aluno)
+      markMessagesAsRead(currentUser.uid, student.uid)
+        .then(result => {
+          if (result.success && result.count > 0) {
+            console.log('[DirectChatWindow] ✅', result.count, 'mensagens marcadas como lidas na abertura')
+          }
+        })
+        .catch(err => {
+          console.error('[DirectChatWindow] Erro ao marcar como lida na abertura:', err)
+        })
+    }, 500)
 
-    return () => unsubscribe()
+    return () => {
+      clearTimeout(markTimer)
+      unsubscribe()
+    }
   }, [currentUser, student])
 
   // Scroll para última mensagem

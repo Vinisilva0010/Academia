@@ -73,6 +73,8 @@ export default function AdminChatWindow({ onClose, initialStudent = null, initia
       studentId: selectedStudent.uid
     })
 
+    let hasMarkedAsRead = false // Flag para evitar marcar múltiplas vezes
+
     const unsubscribe = subscribeToConversation(
       currentUser.uid,
       selectedStudent.uid,
@@ -80,21 +82,55 @@ export default function AdminChatWindow({ onClose, initialStudent = null, initia
         console.log('[AdminChatWindow] Mensagens recebidas:', conversationMessages.length)
         setMessages(conversationMessages)
         
-        // Marcar mensagens como lidas quando chat abrir ou receber novas mensagens
-        if (conversationMessages.length > 0) {
-          markMessagesAsRead(selectedStudent.uid, currentUser.uid).catch(err => {
-            console.error('[AdminChatWindow] Erro ao marcar como lida:', err)
-          })
+        // Verificar se há mensagens não lidas do aluno para o admin
+        const unreadFromStudent = conversationMessages.filter(
+          msg => msg.senderId === selectedStudent.uid && 
+                 msg.receiverId === currentUser.uid && 
+                 !msg.read
+        )
+        
+        // Marcar como lidas apenas se houver mensagens não lidas E ainda não marcou
+        if (unreadFromStudent.length > 0 && !hasMarkedAsRead) {
+          console.log('[AdminChatWindow] Marcando', unreadFromStudent.length, 'mensagens como lidas')
+          hasMarkedAsRead = true
+          
+          // userId = quem está recebendo (admin), senderId = quem enviou (aluno)
+          markMessagesAsRead(currentUser.uid, selectedStudent.uid)
+            .then(result => {
+              if (result.success) {
+                console.log('[AdminChatWindow] ✅ Mensagens marcadas como lidas:', result.count)
+              }
+              // Resetar flag após um delay para permitir marcar novas mensagens
+              setTimeout(() => {
+                hasMarkedAsRead = false
+              }, 2000)
+            })
+            .catch(err => {
+              console.error('[AdminChatWindow] Erro ao marcar como lida:', err)
+              hasMarkedAsRead = false
+            })
         }
       }
     )
 
     // Marcar mensagens como lidas imediatamente quando o chat abrir ou aluno selecionado mudar
-    markMessagesAsRead(selectedStudent.uid, currentUser.uid).catch(err => {
-      console.error('[AdminChatWindow] Erro ao marcar como lida na abertura:', err)
-    })
+    // Delay pequeno para garantir que a subscription já está ativa
+    const markTimer = setTimeout(() => {
+      console.log('[AdminChatWindow] Marcando mensagens como lidas na abertura/seleção')
+      // userId = quem está recebendo (admin), senderId = quem enviou (aluno)
+      markMessagesAsRead(currentUser.uid, selectedStudent.uid)
+        .then(result => {
+          if (result.success && result.count > 0) {
+            console.log('[AdminChatWindow] ✅', result.count, 'mensagens marcadas como lidas na abertura')
+          }
+        })
+        .catch(err => {
+          console.error('[AdminChatWindow] Erro ao marcar como lida na abertura:', err)
+        })
+    }, 500)
 
     return () => {
+      clearTimeout(markTimer)
       console.log('[AdminChatWindow] Limpando subscription')
       unsubscribe()
     }

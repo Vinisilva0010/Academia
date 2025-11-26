@@ -70,6 +70,8 @@ export default function ChatWindow({ onClose }) {
       adminId: adminInfo.uid
     })
 
+    let hasMarkedAsRead = false // Flag para evitar marcar múltiplas vezes
+
     const unsubscribe = subscribeToConversation(
       currentUser.uid,
       adminInfo.uid,
@@ -77,21 +79,54 @@ export default function ChatWindow({ onClose }) {
         console.log('[ChatWindow] Mensagens recebidas:', conversationMessages.length)
         setMessages(conversationMessages)
         
-        // Marcar mensagens como lidas quando chat abrir ou receber novas mensagens
-        if (conversationMessages.length > 0) {
-          markMessagesAsRead(currentUser.uid, adminInfo.uid).catch(err => {
-            console.error('[ChatWindow] Erro ao marcar como lida:', err)
-          })
+        // Verificar se há mensagens não lidas do admin para o cliente
+        const unreadFromAdmin = conversationMessages.filter(
+          msg => msg.senderId === adminInfo.uid && 
+                 msg.receiverId === currentUser.uid && 
+                 !msg.read
+        )
+        
+        // Marcar como lidas apenas se houver mensagens não lidas E ainda não marcou
+        if (unreadFromAdmin.length > 0 && !hasMarkedAsRead) {
+          console.log('[ChatWindow] Marcando', unreadFromAdmin.length, 'mensagens como lidas')
+          hasMarkedAsRead = true
+          
+          // userId = quem está recebendo (cliente), senderId = quem enviou (admin)
+          markMessagesAsRead(currentUser.uid, adminInfo.uid)
+            .then(result => {
+              if (result.success) {
+                console.log('[ChatWindow] ✅ Mensagens marcadas como lidas:', result.count)
+              }
+              // Resetar flag após um delay para permitir marcar novas mensagens
+              setTimeout(() => {
+                hasMarkedAsRead = false
+              }, 2000)
+            })
+            .catch(err => {
+              console.error('[ChatWindow] Erro ao marcar como lida:', err)
+              hasMarkedAsRead = false
+            })
         }
       }
     )
 
     // Marcar mensagens como lidas imediatamente quando o chat abrir
-    markMessagesAsRead(currentUser.uid, adminInfo.uid).catch(err => {
-      console.error('[ChatWindow] Erro ao marcar como lida na abertura:', err)
-    })
+    // Delay pequeno para garantir que a subscription já está ativa
+    const markTimer = setTimeout(() => {
+      console.log('[ChatWindow] Marcando mensagens como lidas na abertura do chat')
+      markMessagesAsRead(currentUser.uid, adminInfo.uid)
+        .then(result => {
+          if (result.success && result.count > 0) {
+            console.log('[ChatWindow] ✅', result.count, 'mensagens marcadas como lidas na abertura')
+          }
+        })
+        .catch(err => {
+          console.error('[ChatWindow] Erro ao marcar como lida na abertura:', err)
+        })
+    }, 500)
 
     return () => {
+      clearTimeout(markTimer)
       console.log('[ChatWindow] Limpando subscription')
       unsubscribe()
     }
