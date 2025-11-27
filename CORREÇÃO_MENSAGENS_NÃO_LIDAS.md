@@ -122,3 +122,5 @@ Se ainda houver problemas, verifique:
 2. ✅ Regras do Firestore permitem atualização de `read`
 3. ✅ Console do navegador mostra logs de atualização
 
+
+

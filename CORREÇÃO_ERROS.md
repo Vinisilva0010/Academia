@@ -59,3 +59,5 @@ Se ainda houver problemas, verifique:
 - Se as regras do Storage foram publicadas
 - Se não há bloqueadores de CORS no navegador
 
+
+

@@ -58,3 +58,5 @@ Se você ainda receber erros de CORS após configurar as regras:
 2. Certifique-se de que o usuário está autenticado
 3. Verifique se o Firebase Auth está configurado corretamente
 
+
+
