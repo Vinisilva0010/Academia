@@ -31,6 +31,41 @@
   }
 }
 
+/* Fundo gradiente animado verde/preto para a landing */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradient-shift 18s ease-in-out infinite;
+}
+
+/* Animação suave no título IMMERSION FIT */
+@keyframes pulse-slow {
+  0%, 100% {
+    transform: scale(1);
+    text-shadow: 0 0 20px rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.03);
+    text-shadow: 0 0 30px rgba(16, 185, 129, 1);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+
+
 @layer utilities {
   @keyframes slide-in-right {
     from {

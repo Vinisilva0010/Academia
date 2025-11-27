@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import Splash from './pages/Splash'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Admin from './pages/Admin'
@@ -10,7 +11,19 @@ function App() {
   return (
     <div className="min-h-screen bg-pure-black">
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Página inicial com efeitos IMMERSION FIT */}
+        <Route path="/" element={<Splash />} />
+
+        {/* Se quiser manter a Home antiga em outra rota */}
+        <Route 
+          path="/home" 
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          } 
+        />
+
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
         <Route 
@@ -21,7 +34,14 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
         {/* Redirecionar rotas não encontradas */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

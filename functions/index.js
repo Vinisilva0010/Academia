@@ -55,6 +55,21 @@ exports.onMessageCreated = functions.firestore
       // Se não há token FCM, não enviar notificação
       if (!fcmToken) {
         console.log('[onMessageCreated] ℹ️ Destinatário não tem FCM token configurado:', receiverId);
+        console.log('[onMessageCreated] Dados do destinatário:', {
+          hasName: !!receiverData?.name,
+          hasEmail: !!receiverData?.email,
+          keys: Object.keys(receiverData || {})
+        });
+        return null;
+      }
+      
+      // Validar formato do token
+      if (typeof fcmToken !== 'string' || fcmToken.length < 10) {
+        console.error('[onMessageCreated] ❌ Token FCM inválido (formato incorreto):', {
+          type: typeof fcmToken,
+          length: fcmToken?.length,
+          preview: fcmToken?.substring(0, 20)
+        });
         return null;
       }
 
@@ -119,10 +134,39 @@ exports.onMessageCreated = functions.firestore
 
       // Enviar notificação
       console.log('[onMessageCreated] 📤 Enviando notificação para:', receiverId);
-      const response = await admin.messaging().send(message);
+      console.log('[onMessageCreated] FCM Token (primeiros 20 chars):', fcmToken.substring(0, 20));
+      console.log('[onMessageCreated] Payload:', JSON.stringify({
+        title: notificationTitle,
+        body: notificationBody,
+        hasToken: !!fcmToken,
+        tokenLength: fcmToken?.length
+      }));
       
-      console.log('[onMessageCreated] ✅ Notificação enviada com sucesso:', response);
-      return null;
+      try {
+        const response = await admin.messaging().send(message);
+        console.log('[onMessageCreated] ✅ Notificação enviada com sucesso:', response);
+        return null;
+      } catch (sendError) {
+        console.error('[onMessageCreated] ❌ Erro ao enviar notificação:', sendError);
+        console.error('[onMessageCreated] Código do erro:', sendError.code);
+        console.error('[onMessageCreated] Mensagem do erro:', sendError.message);
+        
+        // Erro comum: token inválido ou expirado
+        if (sendError.code === 'messaging/invalid-registration-token' || 
+            sendError.code === 'messaging/registration-token-not-registered') {
+          console.warn('[onMessageCreated] ⚠️ Token inválido ou expirado. Removendo token do Firestore.');
+          // Remover token inválido do Firestore
+          await admin.firestore()
+            .collection('users')
+            .doc(receiverId)
+            .update({
+              fcmToken: admin.firestore.FieldValue.delete(),
+              fcmTokenUpdatedAt: admin.firestore.FieldValue.delete()
+            });
+        }
+        
+        return null;
+      }
 
     } catch (error) {
       console.error('[onMessageCreated] ❌ Erro ao processar mensagem:', error);
@@ -133,4 +177,5 @@ exports.onMessageCreated = functions.firestore
       return null;
     }
   });
+
 
