@@ -4,6 +4,7 @@ import { getAllStudents, deleteStudent } from '../../utils/admin'
 import Avatar from '../Avatar'
 import { useNavigate } from 'react-router-dom'
 
+
 export default function StudentList({ onSelectStudent, onEditPlan }) {
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)

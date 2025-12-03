@@ -12,6 +12,8 @@ import {
 import VideoPlayer from '../VideoPlayer'
 import StreakCalendar from './StreakCalendar'
 
+
+
 export default function TrainingTab() {
   const { currentUser } = useAuth()
   const [plan, setPlan] = useState(null)
@@ -28,6 +30,8 @@ export default function TrainingTab() {
 
   // Data de hoje (YYYY-MM-DD)
   const today = new Date().toISOString().split('T')[0]
+
+  
 
   // Função para atualizar progresso baseado nos logs atuais
   const updateProgress = useCallback((planData) => {
@@ -54,6 +58,8 @@ export default function TrainingTab() {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
     setProgress({ completed, total, percentage })
   }, [workoutLogs])
+
+  
 
   // Carregar plano
   useEffect(() => {
@@ -267,6 +273,22 @@ export default function TrainingTab() {
   const trainings = plan?.trainings || []
   const activeTraining = trainings[activeTrainingTab] || null
   const exercises = activeTraining?.exercises || []
+  
+  
+  // 1. Pega o nome do treino atual para buscar no log (Ex: "Treino A")
+  const currentWorkoutName = activeTraining?.name;
+
+  // 2. Total de exercícios (já temos na variável exercises, só pegamos o tamanho)
+  const totalExercises = exercises.length;
+
+  // 3. Quantos foram feitos hoje? (Busca no seu estado 'workoutLogs')
+  // Se não tiver log ainda, assume 0
+  const completedCount = workoutLogs[currentWorkoutName]?.completedIds?.length || 0;
+
+  // 4. A Porcentagem Final (0 a 100)
+  const dailyProgress = totalExercises === 0 ? 0 : Math.round((completedCount / totalExercises) * 100);
+
+  // ---------------------------------------------------
 
   return (
     <div className="space-y-6">
@@ -282,39 +304,52 @@ export default function TrainingTab() {
       {/* Calendário de Streak */}
       <StreakCalendar />
 
-      {/* Barra de Progresso */}
-      {trainings.length > 0 && progress.total > 0 && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-neon-green" />
-              <span className="text-sm font-bold uppercase text-gray-300">
-                Progresso de Hoje
-              </span>
-            </div>
-            <span className="text-sm font-black text-white">
-              {progress.completed}/{progress.total} exercícios
+      {/* BARRA DE PROGRESSO DO DIA (NOVA) */}
+      <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mb-6 relative overflow-hidden shadow-lg">
+        
+        {/* Cabeçalho da Barra */}
+        <div className="flex justify-between items-end mb-3 relative z-10">
+          <div>
+            <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">
+              {dailyProgress === 100 ? 'MISSÃO CUMPRIDA' : 'META DO DIA'}
+            </p>
+            <h3 className="text-white font-black text-xl italic tracking-tighter">
+              {dailyProgress === 100 ? 'TREINO FINALIZADO 🔥' : 'EM ANDAMENTO...'}
+            </h3>
+          </div>
+          <div className="text-right">
+            <span className={`text-4xl font-black ${dailyProgress === 100 ? 'text-emerald-400' : 'text-zinc-600'}`}>
+              {dailyProgress}%
             </span>
           </div>
-          <div className="w-full bg-zinc-800 rounded-full h-6 overflow-hidden border border-zinc-700 relative">
-            <div
-              className="h-full bg-gradient-to-r from-neon-green to-neon-green/80 transition-all duration-500 ease-out flex items-center justify-end pr-2"
-              style={{ width: `${progress.percentage}%` }}
-            >
-              {progress.percentage > 15 && (
-                <span className="text-xs font-black text-white">
-                  {progress.percentage}%
-                </span>
-              )}
-            </div>
-            {progress.percentage <= 15 && (
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-gray-400">
-                {progress.percentage}%
-              </span>
-            )}
+        </div>
+
+        {/* O Tubo da Barra */}
+        <div className="w-full bg-black h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
+          {/* O Líquido Neon */}
+          <div 
+            className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700 ease-out shadow-[0_0_20px_rgba(16,185,129,0.5)] relative"
+            style={{ width: `${dailyProgress}%` }}
+          >
+            {/* Brilho na ponta */}
+            <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-white blur-[1px]"></div>
           </div>
         </div>
-      )}
+        
+        <div className="flex justify-between mt-2 relative z-10">
+          <p className="text-[10px] text-zinc-500 font-bold uppercase">
+            {completedCount} de {totalExercises} Concluídos
+          </p>
+          {dailyProgress === 100 && (
+            <p className="text-[10px] text-emerald-500 font-bold uppercase animate-pulse">
+              Bom descanso!
+            </p>
+          )}
+        </div>
+
+        {/* Efeito de Fundo Decorativo (Opcional) */}
+        <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
+      </div>
 
       {/* Abas de Treinos */}
       {trainings.length > 0 ? (

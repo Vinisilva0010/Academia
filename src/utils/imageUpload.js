@@ -124,6 +124,27 @@ export const uploadChatImage = async (file, userId) => {
   }
 }
 
+// --- ADICIONE ISSO NO FINAL DO ARQUIVO src/utils/imageUpload.js ---
+
+export const uploadProfileImage = async (file, userId) => {
+  if (!file) return { success: false, error: 'Sem arquivo' }
+  
+  // Aqui muda a pasta para 'profile_photos' e usa um nome fixo 'profile' 
+  // para substituir a foto antiga automaticamente
+  const fileExtension = file.name.split('.').pop() || 'jpg'
+  const path = `profile_photos/${userId}/profile.${fileExtension}`
+  const storageRef = ref(storage, path)
+
+  try {
+    const snapshot = await uploadBytes(storageRef, file)
+    const url = await getDownloadURL(snapshot.ref)
+    return { success: true, url }
+  } catch (error) {
+    console.error("Erro upload perfil:", error)
+    return { success: false, error: error.message }
+  }
+}
+
 /**
  * Validar se o arquivo é uma imagem válida
  * @param {File} file - Arquivo a validar

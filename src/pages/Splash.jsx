@@ -36,8 +36,7 @@ const Splash = () => {
         </h1>
 
         <p className="mt-6 max-w-xl text-center text-sm text-gray-300 sm:text-base">
-          Consultoria fitness imersiva com treinos personalizados, acompanhamento
-          próximo e uma experiência visual pensada para te colocar em modo foco total.
+        A tecnologia que impulsiona sua performance.
         </p>
 
         <div className="mt-8 h-px w-40 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
