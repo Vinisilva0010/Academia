@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Calendar as CalendarIcon, Flame } from 'lucide-react'
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { Calendar as CalendarIcon, Flame, ChevronRight, Trophy } from 'lucide-react'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { useAuth } from '../../contexts/AuthContext'
 
 /**
  * Componente de Calendário de Streak (Frequência de Treinos)
- * Mostra visualmente os dias que o usuário treinou na semana/mês
+ * Versão: Cyberpunk Premium
  */
 export default function StreakCalendar() {
+  // --- LÓGICA (MANTIDA ORIGINAL) ---
   const { currentUser } = useAuth()
-  const [workoutDays, setWorkoutDays] = useState([]) // Array de datas no formato YYYY-MM-DD
-  const [streakCount, setStreakCount] = useState(0) // Dias treinados na semana
+  const [workoutDays, setWorkoutDays] = useState([]) 
+  const [streakCount, setStreakCount] = useState(0) 
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState('week') // 'week' ou 'month'
+  const [viewMode, setViewMode] = useState('week') 
 
   useEffect(() => {
     if (!currentUser) return
@@ -21,18 +22,13 @@ export default function StreakCalendar() {
     const loadWorkoutDays = async () => {
       setLoading(true)
       try {
-        // Buscar logs dos últimos 30 dias
         const logsRef = collection(db, 'users', currentUser.uid, 'workout_logs')
-        
-        // Buscar todos os logs (não há query de range de data fácil, então buscamos todos e filtramos)
         const logsSnapshot = await getDocs(logsRef)
         const days = []
         
         logsSnapshot.forEach((doc) => {
           const logData = doc.data()
           if (logData.date && logData.completedExerciseIds && logData.completedExerciseIds.length > 0) {
-            // Verificar se realmente completou exercícios (não apenas criou o log vazio)
-            // Converter data para string se for Timestamp
             let dateStr = logData.date
             if (dateStr && typeof dateStr === 'object' && dateStr.toDate) {
               dateStr = dateStr.toDate().toISOString().split('T')[0]
@@ -45,18 +41,13 @@ export default function StreakCalendar() {
           }
         })
 
-        // Remover duplicatas (um dia pode ter múltiplos treinos)
         const uniqueDays = [...new Set(days)]
-        
-        // Ordenar por data (mais recente primeiro)
         uniqueDays.sort((a, b) => new Date(b) - new Date(a))
-        
         setWorkoutDays(uniqueDays)
 
-        // Calcular streak da semana atual
         const today = new Date()
         const startOfWeek = new Date(today)
-        startOfWeek.setDate(today.getDate() - today.getDay()) // Domingo como início da semana
+        startOfWeek.setDate(today.getDate() - today.getDay()) 
         startOfWeek.setHours(0, 0, 0, 0)
 
         const weekDays = uniqueDays.filter(dateStr => {
@@ -77,20 +68,17 @@ export default function StreakCalendar() {
     }
 
     loadWorkoutDays()
-
-    // Recarregar a cada minuto para atualizar em tempo real
     const interval = setInterval(loadWorkoutDays, 60000)
     return () => clearInterval(interval)
   }, [currentUser])
 
-  // Gerar dias da semana atual
   const getWeekDays = () => {
     const today = new Date()
     const startOfWeek = new Date(today)
-    startOfWeek.setDate(today.getDate() - today.getDay()) // Domingo = 0
+    startOfWeek.setDate(today.getDate() - today.getDay()) 
     
     const days = []
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const dayNames = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB']
     
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek)
@@ -108,11 +96,9 @@ export default function StreakCalendar() {
         dateObj: date
       })
     }
-    
     return days
   }
 
-  // Gerar dias do mês atual (compacto)
   const getMonthDays = () => {
     const today = new Date()
     const year = today.getFullYear()
@@ -123,36 +109,29 @@ export default function StreakCalendar() {
     const daysInMonth = lastDay.getDate()
     
     const days = []
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
     
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i)
       const dateStr = date.toISOString().split('T')[0]
-      const dayName = dayNames[date.getDay()]
       const isToday = dateStr === new Date().toISOString().split('T')[0]
       const hasWorkout = workoutDays.includes(dateStr)
       
       days.push({
         date: dateStr,
-        dayName,
         dayNumber: i,
         isToday,
         hasWorkout,
         dateObj: date
       })
     }
-    
     return days
   }
 
   if (loading) {
     return (
-      <div className="card">
-        <div className="flex items-center gap-3 mb-4">
-          <CalendarIcon className="w-5 h-5 text-neon-blue" />
-          <h4 className="text-lg font-black uppercase">Frequência de Treinos</h4>
-        </div>
-        <p className="text-gray-400 text-sm">Carregando...</p>
+      <div className="animate-pulse flex flex-col gap-4">
+        <div className="h-8 w-1/3 bg-zinc-800 rounded mb-2"></div>
+        <div className="h-20 bg-zinc-800 rounded-xl"></div>
       </div>
     )
   }
@@ -161,119 +140,143 @@ export default function StreakCalendar() {
   const monthDays = getMonthDays()
   const monthName = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
+  // --- RENDERIZAÇÃO VISUAL (PREMIUM) ---
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <CalendarIcon className="w-5 h-5 text-neon-blue" />
-          <h4 className="text-lg font-black uppercase">Frequência de Treinos</h4>
+    <div className="w-full">
+      
+      {/* 1. Header do Calendário */}
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-neon-blue/10 rounded-lg border border-neon-blue/20">
+             <CalendarIcon className="w-4 h-4 text-neon-blue" />
+          </div>
+          <h4 className="text-sm font-black uppercase tracking-wider text-white">
+            FREQUÊNCIA
+          </h4>
         </div>
+        
+        {/* Toggle Button Estilizado */}
         <button
           onClick={() => setViewMode(viewMode === 'week' ? 'month' : 'week')}
-          className="text-xs text-gray-400 hover:text-neon-blue transition-colors uppercase font-bold"
+          className="group flex items-center gap-1 text-[10px] font-bold text-zinc-500 hover:text-white uppercase transition-colors bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800 hover:border-zinc-600"
         >
           {viewMode === 'week' ? 'Ver Mês' : 'Ver Semana'}
+          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
 
-      {/* Estatística de Streak */}
-      <div className="mb-4 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
-        <div className="flex items-center gap-2 mb-2">
-          <Flame className="w-5 h-5 text-neon-green" />
-          <span className="text-sm font-bold text-gray-300">
-            {streakCount > 0 
-              ? `Você treinou ${streakCount} dia${streakCount > 1 ? 's' : ''} essa semana!`
-              : 'Comece sua semana treinando hoje!'
-            }
-          </span>
+      {/* 2. Banner de Streak (Fogo) */}
+      <div className="mb-6 relative overflow-hidden rounded-xl border border-orange-500/20 bg-gradient-to-r from-orange-900/10 to-red-900/10 p-4 group">
+        <div className="absolute inset-0 bg-orange-500/5 blur-xl group-hover:bg-orange-500/10 transition-all duration-500" />
+        
+        <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 rounded-full border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                    <Flame className="w-6 h-6 text-orange-500 animate-pulse fill-orange-500/20" />
+                </div>
+                <div>
+                    <h5 className="text-white font-black italic text-lg leading-none">
+                        {streakCount} {streakCount === 1 ? 'DIA' : 'DIAS'}
+                    </h5>
+                    <p className="text-[10px] font-bold text-orange-400/80 uppercase tracking-wide mt-1">
+                        FOCO TOTAL NESTA SEMANA
+                    </p>
+                </div>
+            </div>
+            
+            {/* Ícone de Troféu Decorativo */}
+            <Trophy className="w-12 h-12 text-zinc-800/50 absolute right-2 -bottom-2 rotate-12" />
         </div>
-        {workoutDays.length > 0 && (
-          <p className="text-xs text-gray-500">
-            Total: {workoutDays.length} dia{workoutDays.length > 1 ? 's' : ''} treinado{workoutDays.length > 1 ? 's' : ''}
-          </p>
-        )}
       </div>
 
-      {/* Visualização Semanal */}
+      {/* 3. Visualização Semanal (Cápsulas) */}
       {viewMode === 'week' && (
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-2 sm:gap-3">
           {weekDays.map((day) => (
             <div
               key={day.date}
-              className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
-                day.isToday
-                  ? 'border-neon-blue bg-neon-blue/10 shadow-glow-blue'
+              className={`
+                relative flex flex-col items-center justify-center py-3 px-1 rounded-2xl border transition-all duration-300
+                ${day.isToday 
+                  ? 'border-neon-blue bg-neon-blue/10 shadow-[0_0_10px_rgba(6,182,212,0.2)] scale-105 z-10' 
                   : day.hasWorkout
-                  ? 'border-neon-green bg-neon-green/10'
-                  : 'border-zinc-700 bg-zinc-800/50'
-              }`}
+                  ? 'border-emerald-500/30 bg-emerald-900/20'
+                  : 'border-zinc-800 bg-zinc-900/40 opacity-60'
+                }
+              `}
             >
-              <span className={`text-xs font-bold mb-1 ${
-                day.isToday ? 'text-neon-blue' : 'text-gray-400'
+              {/* Dia da Semana */}
+              <span className={`text-[9px] font-black tracking-tighter mb-2 ${
+                day.isToday ? 'text-neon-blue' : 'text-zinc-500'
               }`}>
                 {day.dayName}
               </span>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                day.hasWorkout
-                  ? 'bg-neon-green text-white shadow-glow-green'
+
+              {/* Indicador (Círculo ou Check) */}
+              <div className={`
+                w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500
+                ${day.hasWorkout
+                  ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-110'
                   : day.isToday
-                  ? 'bg-neon-blue/20 text-neon-blue'
-                  : 'bg-zinc-700 text-gray-600'
-              }`}>
+                  ? 'bg-transparent border-2 border-neon-blue text-neon-blue'
+                  : 'bg-zinc-800 text-zinc-600'
+                }
+              `}>
                 {day.hasWorkout ? (
-                  <div className="w-3 h-3 rounded-full bg-white" />
+                  <Flame className="w-4 h-4 fill-black" />
                 ) : (
-                  <span className="text-xs">
-                    {day.dateObj.getDate()}
-                  </span>
+                  <span className="text-xs font-bold">{day.dateObj.getDate()}</span>
                 )}
               </div>
+              
+              {/* Brilho no fundo se treinou */}
+              {day.hasWorkout && (
+                 <div className="absolute inset-0 bg-emerald-500/10 blur-md rounded-2xl -z-10" />
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Visualização Mensal (Compacta) */}
+      {/* 4. Visualização Mensal (Data Grid) */}
       {viewMode === 'month' && (
-        <div>
-          <div className="mb-3">
-            <h5 className="text-sm font-bold text-gray-300 uppercase mb-2">
-              {monthName}
-            </h5>
+        <div className="bg-black/40 rounded-2xl p-4 border border-zinc-800">
+          <div className="mb-4 flex items-center gap-2">
+             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+             <h5 className="text-xs font-bold text-white uppercase tracking-widest">
+                {monthName}
+             </h5>
           </div>
+          
           <div className="grid grid-cols-7 gap-1 text-center">
-            {/* Headers dos dias */}
             {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((header, idx) => (
-              <div key={idx} className="text-xs font-bold text-gray-500 py-1">
+              <div key={idx} className="text-[10px] font-bold text-zinc-600 py-1">
                 {header}
               </div>
             ))}
             
-            {/* Espaços vazios antes do primeiro dia */}
             {monthDays[0] && Array.from({ length: monthDays[0].dateObj.getDay() }).map((_, idx) => (
               <div key={`empty-${idx}`} className="h-8" />
             ))}
             
-            {/* Dias do mês */}
             {monthDays.map((day) => (
               <div
                 key={day.date}
-                className={`h-8 flex items-center justify-center rounded relative ${
-                  day.isToday
-                    ? 'bg-neon-blue/20 border border-neon-blue'
+                className={`
+                  aspect-square flex items-center justify-center rounded-lg text-xs font-bold relative transition-all
+                  ${day.isToday
+                    ? 'text-neon-blue border border-neon-blue/50 bg-neon-blue/10'
                     : day.hasWorkout
-                    ? 'bg-neon-green/20'
-                    : ''
-                }`}
-                title={day.hasWorkout ? `Treinou em ${day.date}` : ''}
+                    ? 'text-white bg-emerald-500/20' // Green background for workout days
+                    : 'text-zinc-600 hover:bg-zinc-800'
+                  }
+                `}
               >
-                <span className={`text-xs font-bold ${
-                  day.isToday ? 'text-neon-blue' : day.hasWorkout ? 'text-neon-green' : 'text-gray-400'
-                }`}>
-                  {day.dayNumber}
-                </span>
+                {day.dayNumber}
+                
+                {/* Ponto brilhante se treinou */}
                 {day.hasWorkout && (
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-neon-green shadow-glow-green" />
+                  <div className="absolute bottom-1 w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,1)]" />
                 )}
               </div>
             ))}
@@ -283,4 +286,3 @@ export default function StreakCalendar() {
     </div>
   )
 }
-

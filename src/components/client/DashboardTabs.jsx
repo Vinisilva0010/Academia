@@ -14,35 +14,39 @@ export default function DashboardTabs() {
   ]
 
   return (
-    <div>
-      {/* Tab Navigation */}
-      <div className="flex gap-2 mb-8 border-b border-zinc-800">
-        {tabs.map(tab => {
-          const Icon = tab.icon
-          const isActive = activeTab === tab.id
-          
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-4 font-bold uppercase tracking-wide transition-all relative ${
-                isActive
-                  ? 'text-neon-blue'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              {tab.label}
-              {isActive && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-blue shadow-glow-blue" />
-              )}
-            </button>
-          )
-        })}
+    <div className="w-full">
+      {/* --- NOVO MENU DE NAVEGAÇÃO PREMIUM --- 
+         Mudamos de 'border-b' para um container flutuante estilo Glassmorphism
+      */}
+      <div className="flex justify-center mb-8">
+        <div className="inline-flex p-1.5 bg-zinc-900/80 backdrop-blur-md border border-white/5 rounded-2xl shadow-xl overflow-x-auto max-w-full">
+          {tabs.map(tab => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all duration-300 ease-out
+                  ${isActive 
+                    ? 'bg-neon-blue/10 text-neon-blue border border-neon-blue/20 shadow-[0_0_15px_rgba(0,255,255,0.15)] translate-y-0' 
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+                  }
+                `}
+              >
+                {/* O ícone brilha levemente quando ativo */}
+                <Icon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-md' : ''}`} />
+                <span className="whitespace-nowrap">{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Tab Content */}
-      <div>
+      {/* Tab Content - Área de conteúdo com animação suave de entrada */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         {activeTab === 'treino' && <TrainingTab />}
         {activeTab === 'dieta' && <DietTab />}
         {activeTab === 'evolucao' && <EvolutionTab />}
@@ -50,6 +54,3 @@ export default function DashboardTabs() {
     </div>
   )
 }
-
-
-

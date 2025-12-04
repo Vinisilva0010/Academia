@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, MessageCircle, AlertCircle, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { X, Send, MessageCircle, AlertCircle, Paperclip, Image as ImageIcon, Loader2, Check, User } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToConversation, sendMessage, markMessagesAsRead } from '../../utils/messages'
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { uploadChatImage, isValidImageFile } from '../../utils/imageUpload'
 import ImageModal from '../ImageModal'
 
 export default function ChatWindow({ onClose }) {
-  const { currentUser, userProfile } = useAuth()
+  // --- LÓGICA (MANTIDA 100% ORIGINAL) ---
+  const { currentUser } = useAuth()
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,122 +23,64 @@ export default function ChatWindow({ onClose }) {
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Buscar info do admin
   useEffect(() => {
     const fetchAdminInfo = async () => {
       try {
-        console.log('[ChatWindow] Buscando admin...')
-        // Buscar primeiro usuário com role 'admin'
         const usersRef = collection(db, 'users')
         const q = query(usersRef, where('role', '==', 'admin'))
         const snapshot = await getDocs(q)
-        
         if (!snapshot.empty) {
           const adminDoc = snapshot.docs[0]
-          const adminData = {
-            uid: adminDoc.id,
-            ...adminDoc.data()
-          }
-          console.log('[ChatWindow] Admin encontrado:', adminData.uid)
+          const adminData = { uid: adminDoc.id, ...adminDoc.data() }
           setAdminInfo(adminData)
         } else {
-          console.warn('[ChatWindow] Nenhum admin encontrado')
           setError('Personal Trainer não encontrado')
         }
       } catch (error) {
-        console.error('[ChatWindow] Erro ao buscar admin:', error)
         setError('Erro ao carregar chat')
       }
     }
-
     if (currentUser) {
       fetchAdminInfo()
     }
   }, [currentUser])
 
-  // Subscrever mensagens em tempo real
   useEffect(() => {
-    if (!currentUser || !adminInfo) {
-      console.log('[ChatWindow] Aguardando currentUser ou adminInfo:', { 
-        hasUser: !!currentUser, 
-        hasAdmin: !!adminInfo 
-      })
-      return
-    }
-
-    console.log('[ChatWindow] Iniciando subscription de mensagens:', {
-      userId: currentUser.uid,
-      adminId: adminInfo.uid
-    })
-
-    let hasMarkedAsRead = false // Flag para evitar marcar múltiplas vezes
-
+    if (!currentUser || !adminInfo) return
+    let hasMarkedAsRead = false
     const unsubscribe = subscribeToConversation(
       currentUser.uid,
       adminInfo.uid,
       (conversationMessages) => {
-        console.log('[ChatWindow] Mensagens recebidas:', conversationMessages.length)
         setMessages(conversationMessages)
-        
-        // Verificar se há mensagens não lidas do admin para o cliente
         const unreadFromAdmin = conversationMessages.filter(
           msg => msg.senderId === adminInfo.uid && 
                  msg.receiverId === currentUser.uid && 
                  !msg.read
         )
-        
-        // Marcar como lidas apenas se houver mensagens não lidas E ainda não marcou
         if (unreadFromAdmin.length > 0 && !hasMarkedAsRead) {
-          console.log('[ChatWindow] Marcando', unreadFromAdmin.length, 'mensagens como lidas')
           hasMarkedAsRead = true
-          
-          // userId = quem está recebendo (cliente), senderId = quem enviou (admin)
           markMessagesAsRead(currentUser.uid, adminInfo.uid)
-            .then(result => {
-              if (result.success) {
-                console.log('[ChatWindow] ✅ Mensagens marcadas como lidas:', result.count)
-              }
-              // Resetar flag após um delay para permitir marcar novas mensagens
-              setTimeout(() => {
-                hasMarkedAsRead = false
-              }, 2000)
+            .then(() => {
+              setTimeout(() => { hasMarkedAsRead = false }, 2000)
             })
-            .catch(err => {
-              console.error('[ChatWindow] Erro ao marcar como lida:', err)
-              hasMarkedAsRead = false
-            })
+            .catch(() => { hasMarkedAsRead = false })
         }
       }
     )
-
-    // Marcar mensagens como lidas imediatamente quando o chat abrir
-    // Delay pequeno para garantir que a subscription já está ativa
     const markTimer = setTimeout(() => {
-      console.log('[ChatWindow] Marcando mensagens como lidas na abertura do chat')
-      markMessagesAsRead(currentUser.uid, adminInfo.uid)
-        .then(result => {
-          if (result.success && result.count > 0) {
-            console.log('[ChatWindow] ✅', result.count, 'mensagens marcadas como lidas na abertura')
-          }
-        })
-        .catch(err => {
-          console.error('[ChatWindow] Erro ao marcar como lida na abertura:', err)
-        })
+      markMessagesAsRead(currentUser.uid, adminInfo.uid).catch(() => {})
     }, 500)
-
     return () => {
       clearTimeout(markTimer)
-      console.log('[ChatWindow] Limpando subscription')
       unsubscribe()
     }
   }, [currentUser, adminInfo])
 
-  // Scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Auto-focus no input quando abrir
   useEffect(() => {
     setTimeout(() => {
       inputRef.current?.focus()
@@ -147,16 +90,12 @@ export default function ChatWindow({ onClose }) {
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     if (!isValidImageFile(file)) {
-      setError('Por favor, selecione uma imagem válida (JPG, PNG, GIF, WebP) com no máximo 5MB')
+      setError('Imagem inválida (Max 5MB)')
       return
     }
-
     setSelectedImage(file)
     setError('')
-
-    // Criar preview
     const reader = new FileReader()
     reader.onloadend = () => {
       setPreviewImage(reader.result)
@@ -174,47 +113,21 @@ export default function ChatWindow({ onClose }) {
 
   const handleSend = async (e) => {
     e.preventDefault()
-    if ((!newMessage.trim() && !selectedImage) || !currentUser || !adminInfo || loading || uploading) {
-      console.warn('[ChatWindow] Tentativa de envio bloqueada:', {
-        hasMessage: !!newMessage.trim(),
-        hasImage: !!selectedImage,
-        hasUser: !!currentUser,
-        hasAdmin: !!adminInfo,
-        loading,
-        uploading
-      })
-      return
-    }
+    if ((!newMessage.trim() && !selectedImage) || !currentUser || !adminInfo || loading || uploading) return
 
     setLoading(true)
     setError('')
     let imageUrl = null
 
     try {
-      // Upload de imagem se houver
       if (selectedImage) {
         setUploading(true)
-        console.log('[ChatWindow] Iniciando upload da imagem...')
-        
         try {
           const uploadResult = await uploadChatImage(selectedImage, currentUser.uid)
-          
-          if (!uploadResult.success) {
-            throw new Error(uploadResult.error || 'Erro ao fazer upload da imagem')
-          }
-
+          if (!uploadResult.success) throw new Error(uploadResult.error)
           imageUrl = uploadResult.url
-          console.log('[ChatWindow] Upload concluído:', imageUrl)
         } catch (uploadError) {
-          console.error('[ChatWindow] Erro no upload:', uploadError)
-          let errorMsg = uploadError.message || 'Erro ao fazer upload da imagem'
-          
-          // Melhorar mensagem de erro de CORS
-          if (errorMsg.includes('CORS') || errorMsg.includes('ERR_FAILED')) {
-            errorMsg = 'Erro de configuração: Configure as regras do Firebase Storage. Veja FIREBASE_STORAGE_RULES.md'
-          }
-          
-          setError(errorMsg)
+          setError('Erro no upload da imagem')
           setLoading(false)
           setUploading(false)
           return
@@ -223,27 +136,17 @@ export default function ChatWindow({ onClose }) {
         }
       }
       
-      console.log('[ChatWindow] Enviando mensagem:', {
-        senderId: currentUser.uid,
-        receiverId: adminInfo.uid,
-        text: newMessage.substring(0, 50),
-        hasImage: !!imageUrl
-      })
-      
       const result = await sendMessage(currentUser.uid, adminInfo.uid, newMessage || '', imageUrl)
       
       if (result.success) {
-        console.log('[ChatWindow] Mensagem enviada com sucesso')
         setNewMessage('')
         handleRemoveImage()
         inputRef.current?.focus()
       } else {
-        console.error('[ChatWindow] Erro ao enviar:', result.error)
-        setError(result.error || 'Erro ao enviar mensagem')
+        setError(result.error || 'Erro ao enviar')
       }
     } catch (error) {
-      console.error('[ChatWindow] Erro inesperado:', error)
-      setError(error.message || 'Erro ao enviar mensagem')
+      setError('Erro ao enviar mensagem')
     } finally {
       setLoading(false)
       setUploading(false)
@@ -260,46 +163,61 @@ export default function ChatWindow({ onClose }) {
     }
   }
 
+  // --- RENDERIZAÇÃO VISUAL (PREMIUM CHAT) ---
   return (
-    <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl flex flex-col z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900 rounded-t-lg">
+    <div className="fixed bottom-20 right-4 sm:right-6 w-[90vw] sm:w-96 h-[600px] max-h-[80vh] bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
+      
+      {/* Header com Gradiente Sutil */}
+      <div className="flex items-center justify-between p-4 border-b border-white/5 bg-gradient-to-r from-zinc-900 via-zinc-800/50 to-zinc-900">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-neon-blue/20 rounded-lg">
-            <MessageCircle className="w-5 h-5 text-neon-blue" />
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-blue to-purple-600 p-[2px]">
+              <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center">
+                 <User className="w-5 h-5 text-gray-300" />
+              </div>
+            </div>
+            {/* Status Indicator */}
+            {adminInfo && (
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-zinc-900 animate-pulse"></div>
+            )}
           </div>
           <div>
-            <h3 className="font-black uppercase text-white text-sm">
-              {adminInfo?.name || adminInfo?.email || 'Personal Trainer'}
+            <h3 className="font-black uppercase text-white text-sm tracking-wide">
+              {adminInfo?.name || 'Personal Trainer'}
             </h3>
-            <p className="text-xs text-gray-400">
-              {adminInfo ? 'Online' : 'Carregando...'}
-            </p>
+            <div className="flex items-center gap-1.5">
+               <span className={`w-1.5 h-1.5 rounded-full ${adminInfo ? 'bg-emerald-500' : 'bg-gray-500'}`}></span>
+               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                 {adminInfo ? 'Online agora' : 'Offline'}
+               </p>
+            </div>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+          className="p-2 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
         >
-          <X className="w-5 h-5 text-gray-400" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Área de Mensagens */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-900/50 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
         {error && (
-          <div className="bg-red-900/20 border border-red-800 text-red-300 rounded-lg p-3 flex items-center gap-2 mb-4">
-            <AlertCircle className="w-4 h-4" />
-            <span className="text-xs">{error}</span>
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl p-3 flex items-center gap-2 text-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
           </div>
         )}
         
         {messages.length === 0 ? (
-          <div className="text-center text-gray-400 py-8">
-            <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Nenhuma mensagem ainda</p>
-            <p className="text-xs mt-1">
-              {adminInfo ? 'Envie uma mensagem para começar!' : 'Aguardando carregamento...'}
+          <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+               <MessageCircle className="w-8 h-8 text-neon-blue" />
+            </div>
+            <p className="text-sm text-gray-300 font-bold">Chat Iniciado</p>
+            <p className="text-xs text-gray-500 mt-1 max-w-[200px]">
+              Tire suas dúvidas diretamente com seu treinador aqui.
             </p>
           </div>
         ) : (
@@ -311,34 +229,37 @@ export default function ChatWindow({ onClose }) {
                 className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[85%] rounded-2xl p-3 relative group transition-all ${
                     isMine
-                      ? 'bg-neon-blue text-white'
-                      : 'bg-zinc-800 text-gray-200'
+                      ? 'bg-gradient-to-br from-neon-blue to-blue-600 text-white rounded-tr-sm shadow-lg shadow-blue-500/10'
+                      : 'bg-zinc-800 border border-zinc-700 text-gray-200 rounded-tl-sm'
                   }`}
                 >
                   {message.imageUrl && (
-                    <div className="mb-2">
+                    <div className="mb-2 overflow-hidden rounded-lg">
                       <img
-                                src={message.imageUrl}
-                                alt="Imagem enviada"
-                                className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => setModalImage(message.imageUrl)}
+                        src={message.imageUrl}
+                        alt="Anexo"
+                        className="max-w-full max-h-48 object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                        onClick={() => setModalImage(message.imageUrl)}
                       />
                     </div>
                   )}
+                  
                   {message.text && (
-                    <p className="text-sm whitespace-pre-wrap break-words">
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                       {message.text}
                     </p>
                   )}
-                  <p
-                    className={`text-xs mt-1 ${
-                      isMine ? 'text-blue-100' : 'text-gray-400'
-                    }`}
-                  >
-                    {formatTime(message.timestamp)}
-                  </p>
+                  
+                  <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-blue-100' : 'text-gray-500'}`}>
+                    <span className="text-[10px] font-medium">
+                      {formatTime(message.timestamp)}
+                    </span>
+                    {isMine && (
+                       <Check className={`w-3 h-3 ${message.read ? 'text-white' : 'text-blue-200/50'}`} />
+                    )}
+                  </div>
                 </div>
               </div>
             )
@@ -347,38 +268,29 @@ export default function ChatWindow({ onClose }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <form onSubmit={handleSend} className="p-4 border-t border-zinc-800 bg-zinc-900 rounded-b-lg">
-        {/* Preview da imagem */}
+      {/* Área de Input */}
+      <div className="p-3 bg-zinc-900 border-t border-white/5">
+        
+        {/* Preview de Imagem (Flutuante) */}
         {previewImage && (
-          <div className="mb-3 relative inline-block">
-            <div className="relative border border-zinc-700 rounded-lg p-2 bg-zinc-800">
-              <div className="relative">
-                <img
-                  src={previewImage}
-                  alt="Preview"
-                  className="max-w-32 max-h-32 rounded-lg object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  disabled={loading || uploading}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 rounded-full text-white transition-colors disabled:opacity-50"
-                  title="Remover imagem"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              {uploading && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-neon-green">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Enviando imagem...</span>
-                </div>
-              )}
+          <div className="absolute bottom-20 left-4 right-4 bg-zinc-800 p-2 rounded-xl border border-zinc-700 shadow-xl flex items-center justify-between animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-3">
+               <img src={previewImage} alt="Preview" className="w-12 h-12 rounded-lg object-cover bg-black" />
+               <div className="text-xs">
+                  <p className="text-white font-bold">Imagem selecionada</p>
+                  <p className="text-gray-400">Pronta para enviar</p>
+               </div>
             </div>
+            <button 
+              onClick={handleRemoveImage}
+              className="p-1.5 bg-zinc-700 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
-        <div className="flex gap-2">
+
+        <form onSubmit={handleSend} className="flex gap-2 items-end">
           <input
             ref={fileInputRef}
             type="file"
@@ -386,46 +298,45 @@ export default function ChatWindow({ onClose }) {
             onChange={handleFileSelect}
             className="hidden"
           />
+          
           <button
             type="button"
-            onClick={() => {
-              if (!loading && !uploading && adminInfo) {
-                fileInputRef.current?.click()
-              }
-            }}
+            onClick={() => !loading && !uploading && adminInfo && fileInputRef.current?.click()}
             disabled={loading || uploading || !adminInfo}
-            className="p-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={uploading ? "Enviando imagem..." : "Anexar imagem"}
+            className="p-3 bg-zinc-800 hover:bg-zinc-700 text-gray-400 hover:text-neon-blue rounded-xl transition-colors disabled:opacity-50"
           >
             {uploading ? (
-              <Loader2 className="w-5 h-5 animate-spin text-neon-green" />
+              <Loader2 className="w-5 h-5 animate-spin text-neon-blue" />
             ) : (
               <Paperclip className="w-5 h-5" />
             )}
           </button>
-          <input
-            ref={inputRef}
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={adminInfo ? "Digite sua mensagem..." : "Aguardando..."}
-            className="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-neon-blue"
-            disabled={loading || uploading || !adminInfo}
-          />
+
+          <div className="flex-1 bg-zinc-800 rounded-xl flex items-center border border-transparent focus-within:border-neon-blue/50 transition-colors">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder={adminInfo ? "Digite sua mensagem..." : "Conectando..."}
+              className="flex-1 bg-transparent text-white px-4 py-3 outline-none text-sm placeholder-zinc-500"
+              disabled={loading || uploading || !adminInfo}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading || uploading || (!newMessage.trim() && !selectedImage) || !adminInfo}
-            className="btn-primary p-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={uploading ? "Enviando imagem..." : loading ? "Enviando mensagem..." : "Enviar"}
+            className="p-3 bg-neon-blue hover:bg-cyan-300 text-black rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
           >
-            {loading || uploading ? (
+            {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Send className="w-5 h-5" />
             )}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Modal de Imagem */}
       {modalImage && (

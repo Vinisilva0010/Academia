@@ -1,51 +1,38 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Dumbbell, Loader2, CheckCircle2, Circle, Weight, Repeat } from 'lucide-react'
+import { Play, Dumbbell, Loader2, CheckCircle2, Circle, Weight, Repeat, Trophy } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getStudentPlan } from '../../utils/plans'
 import { 
   markExerciseAsCompleted, 
   unmarkExerciseAsCompleted, 
   subscribeToWorkoutLog,
-  getExerciseId,
-  getExerciseData
+  getExerciseId
 } from '../../utils/workoutLogs'
 import VideoPlayer from '../VideoPlayer'
 import StreakCalendar from './StreakCalendar'
 
-
-
 export default function TrainingTab() {
+  // --- LÓGICA (MANTIDA 100% ORIGINAL) ---
   const { currentUser } = useAuth()
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedVideo, setSelectedVideo] = useState(null)
   const [activeTrainingTab, setActiveTrainingTab] = useState(0)
-  const [workoutLogs, setWorkoutLogs] = useState({}) // { trainingName: { completedIds: [], exerciseDetails: {} } }
+  const [workoutLogs, setWorkoutLogs] = useState({}) 
   const [progress, setProgress] = useState({ completed: 0, total: 0, percentage: 0 })
   const [updating, setUpdating] = useState(false)
-  
-  // Estado para armazenar weight e reps de cada exercício
-  // Estrutura: { "Treino A_0": { weight: 20, reps: 12 }, ... }
   const [exerciseInputs, setExerciseInputs] = useState({})
-
-  // Data de hoje (YYYY-MM-DD)
   const today = new Date().toISOString().split('T')[0]
 
-  
-
-  // Função para atualizar progresso baseado nos logs atuais
   const updateProgress = useCallback((planData) => {
     if (!planData) return
-    
     let total = 0
     let completed = 0
-
     planData.trainings.forEach((training) => {
       const trainingName = training.name
       const exercises = training.exercises || []
       const log = workoutLogs[trainingName]
       const completedIds = log?.completedIds || []
-      
       exercises.forEach((_, index) => {
         total++
         const exerciseId = getExerciseId(trainingName, index)
@@ -54,21 +41,15 @@ export default function TrainingTab() {
         }
       })
     })
-
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
     setProgress({ completed, total, percentage })
   }, [workoutLogs])
 
-  
-
-  // Carregar plano
   useEffect(() => {
     const loadPlan = async () => {
       if (!currentUser) return
-
       setLoading(true)
       const planData = await getStudentPlan(currentUser.uid)
-      
       if (planData && planData.trainings && planData.trainings.length > 0) {
         setPlan(planData)
       } else {
@@ -77,20 +58,14 @@ export default function TrainingTab() {
       }
       setLoading(false)
     }
-
     loadPlan()
   }, [currentUser])
 
-  // Subscrever logs de todos os treinos de hoje em tempo real
   useEffect(() => {
     if (!currentUser || !plan || !plan.trainings) return
-
     const unsubscribes = []
-
-    // Subscrever log de cada treino
     plan.trainings.forEach((training) => {
       const trainingName = training.name
-      
       const unsubscribe = subscribeToWorkoutLog(
         currentUser.uid,
         trainingName,
@@ -108,64 +83,50 @@ export default function TrainingTab() {
         },
         today
       )
-      
       unsubscribes.push(unsubscribe)
     })
-
-    // Cleanup
     return () => {
       unsubscribes.forEach(unsub => unsub())
     }
   }, [currentUser, plan, today])
 
-  // Carregar dados salvos (weight/reps) dos exercícios quando logs são atualizados
   useEffect(() => {
     if (!plan) return
-
     const newInputs = {}
-
     plan.trainings.forEach((training) => {
       const trainingName = training.name
       const exercises = training.exercises || []
       const log = workoutLogs[trainingName]
       const exerciseDetails = log?.exerciseDetails || {}
-
       exercises.forEach((_, index) => {
         const exerciseId = getExerciseId(trainingName, index)
         const savedData = exerciseDetails[exerciseId]
-
         if (savedData) {
           newInputs[exerciseId] = {
             weight: savedData.weight || '',
             reps: savedData.reps || ''
           }
         } else {
-          // Inicializar com valores vazios se não existe
           newInputs[exerciseId] = { weight: '', reps: '' }
         }
       })
     })
-
     setExerciseInputs(newInputs)
   }, [workoutLogs, plan])
 
-  // Atualizar progresso quando logs mudarem
   useEffect(() => {
     if (plan) {
       updateProgress(plan)
     }
   }, [plan, workoutLogs, updateProgress])
 
-  // Verificar se exercício está concluído hoje
   const isExerciseCompletedToday = (trainingName, exerciseIndex) => {
     const log = workoutLogs[trainingName]
     if (!log || !log.completedIds) return false
-    
     const exerciseId = getExerciseId(trainingName, exerciseIndex)
     return log.completedIds.includes(exerciseId)
   }
 
-  // Atualizar input de weight ou reps
   const handleInputChange = (trainingName, exerciseIndex, field, value) => {
     const exerciseId = getExerciseId(trainingName, exerciseIndex)
     setExerciseInputs(prev => ({
@@ -177,19 +138,14 @@ export default function TrainingTab() {
     }))
   }
 
-  // Salvar dados do exercício automaticamente se já estiver marcado
   const saveExerciseData = async (trainingIndex, exerciseIndex) => {
     if (!currentUser || !plan || updating) return
-
     const training = plan.trainings[trainingIndex]
     const trainingName = training.name
     const exerciseId = getExerciseId(trainingName, exerciseIndex)
     const isCompleted = isExerciseCompletedToday(trainingName, exerciseIndex)
-
-    // Se o exercício está marcado, salvar os dados
     if (isCompleted) {
       const exerciseData = exerciseInputs[exerciseId] || { weight: '', reps: '' }
-      
       try {
         await markExerciseAsCompleted(
           currentUser.uid,
@@ -207,22 +163,16 @@ export default function TrainingTab() {
     }
   }
 
-  // Alternar estado de conclusão do exercício
   const handleToggleExercise = async (trainingIndex, exerciseIndex) => {
     if (!currentUser || !plan || updating) return
-
     const training = plan.trainings[trainingIndex]
     const trainingName = training.name
     const exerciseId = getExerciseId(trainingName, exerciseIndex)
     const isCompleted = isExerciseCompletedToday(trainingName, exerciseIndex)
-
     setUpdating(true)
-
     try {
       let result
-      
       if (isCompleted) {
-        // Desmarcar: remover do log
         result = await unmarkExerciseAsCompleted(
           currentUser.uid,
           trainingName,
@@ -230,7 +180,6 @@ export default function TrainingTab() {
           today
         )
       } else {
-        // Marcar: salvar com weight e reps
         const exerciseData = exerciseInputs[exerciseId] || {}
         result = await markExerciseAsCompleted(
           currentUser.uid,
@@ -243,11 +192,9 @@ export default function TrainingTab() {
           today
         )
       }
-
       if (!result.success) {
         console.error('Erro ao atualizar exercício:', result.error)
       }
-      // O progresso será atualizado automaticamente via useEffect quando os logs mudarem
     } catch (error) {
       console.error('Erro ao atualizar exercício:', error)
     } finally {
@@ -263,264 +210,219 @@ export default function TrainingTab() {
 
   if (loading) {
     return (
-      <div className="card text-center py-12">
-        <Loader2 className="w-12 h-12 text-neon-blue mx-auto mb-4 animate-spin" />
-        <p className="text-gray-400">Carregando treinos...</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-12 h-12 text-neon-blue animate-spin mb-4" />
+        <p className="text-zinc-500 font-bold animate-pulse">CARREGANDO SEU PLANO...</p>
       </div>
     )
   }
 
+  // --- PREPARAÇÃO DE DADOS VISUAIS ---
   const trainings = plan?.trainings || []
   const activeTraining = trainings[activeTrainingTab] || null
   const exercises = activeTraining?.exercises || []
-  
-  
-  // 1. Pega o nome do treino atual para buscar no log (Ex: "Treino A")
   const currentWorkoutName = activeTraining?.name;
-
-  // 2. Total de exercícios (já temos na variável exercises, só pegamos o tamanho)
   const totalExercises = exercises.length;
-
-  // 3. Quantos foram feitos hoje? (Busca no seu estado 'workoutLogs')
-  // Se não tiver log ainda, assume 0
   const completedCount = workoutLogs[currentWorkoutName]?.completedIds?.length || 0;
-
-  // 4. A Porcentagem Final (0 a 100)
   const dailyProgress = totalExercises === 0 ? 0 : Math.round((completedCount / totalExercises) * 100);
 
-  // ---------------------------------------------------
-
+  // --- RENDERIZAÇÃO VISUAL (AQUI ESTÁ A MÁGICA DO DESIGN) ---
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h3 className="text-2xl font-black uppercase mb-2">
-          TREINOS DA SEMANA
-        </h3>
-        <p className="text-gray-300">
-          Siga seu plano de treino diário e acompanhe sua evolução
-        </p>
-      </div>
-
-      {/* Calendário de Streak */}
-      <StreakCalendar />
-
-      {/* BARRA DE PROGRESSO DO DIA (NOVA) */}
-      <div className="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mb-6 relative overflow-hidden shadow-lg">
-        
-        {/* Cabeçalho da Barra */}
-        <div className="flex justify-between items-end mb-3 relative z-10">
+    <div className="pb-20 space-y-8 animate-in fade-in duration-700">
+      
+      {/* 1. Header & Calendar Wrapper */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">
-              {dailyProgress === 100 ? 'MISSÃO CUMPRIDA' : 'META DO DIA'}
-            </p>
-            <h3 className="text-white font-black text-xl italic tracking-tighter">
-              {dailyProgress === 100 ? 'TREINO FINALIZADO 🔥' : 'EM ANDAMENTO...'}
+            <h3 className="text-2xl font-black italic text-white tracking-tighter">
+              HOJE É DIA DE TREINO
             </h3>
+            <p className="text-zinc-400 text-sm">Supere seus limites.</p>
           </div>
-          <div className="text-right">
-            <span className={`text-4xl font-black ${dailyProgress === 100 ? 'text-emerald-400' : 'text-zinc-600'}`}>
-              {dailyProgress}%
-            </span>
-          </div>
-        </div>
-
-        {/* O Tubo da Barra */}
-        <div className="w-full bg-black h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
-          {/* O Líquido Neon */}
-          <div 
-            className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700 ease-out shadow-[0_0_20px_rgba(16,185,129,0.5)] relative"
-            style={{ width: `${dailyProgress}%` }}
-          >
-            {/* Brilho na ponta */}
-            <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-white blur-[1px]"></div>
-          </div>
+          <Trophy className="w-8 h-8 text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
         </div>
         
-        <div className="flex justify-between mt-2 relative z-10">
-          <p className="text-[10px] text-zinc-500 font-bold uppercase">
-            {completedCount} de {totalExercises} Concluídos
-          </p>
-          {dailyProgress === 100 && (
-            <p className="text-[10px] text-emerald-500 font-bold uppercase animate-pulse">
-              Bom descanso!
-            </p>
-          )}
+        {/* Envelopando o Calendar em um card Glass */}
+        <div className="bg-zinc-900/60 backdrop-blur-md border border-white/5 rounded-2xl p-4">
+           <StreakCalendar />
         </div>
-
-        {/* Efeito de Fundo Decorativo (Opcional) */}
-        <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
       </div>
 
-      {/* Abas de Treinos */}
-      {trainings.length > 0 ? (
-        <div>
-          {/* Navegação de Abas */}
-          <div className="mb-6">
-            <div className="flex gap-2 border-b border-zinc-800 overflow-x-auto">
-              {trainings.map((training, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveTrainingTab(index)}
-                  className={`flex items-center gap-2 px-6 py-4 font-bold uppercase tracking-wide transition-all relative whitespace-nowrap ${
-                    activeTrainingTab === index
-                      ? 'text-neon-blue'
-                      : 'text-gray-400 hover:text-gray-300'
-                  }`}
-                >
-                  <Dumbbell className="w-5 h-5" />
-                  {training.name}
-                  {activeTrainingTab === index && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-blue shadow-glow-blue" />
-                  )}
-                </button>
-              ))}
+      {/* 2. BARRA DE PROGRESSO HERO (LÍQUIDO) */}
+      <div className="relative overflow-hidden rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 to-purple-500/5 pointer-events-none" />
+        
+        <div className="p-6 relative z-10">
+          <div className="flex justify-between items-end mb-4">
+            <div>
+              <p className="text-[10px] font-black tracking-[0.2em] text-neon-blue uppercase mb-1">Status do Treino</p>
+              <h2 className="text-3xl font-black italic text-white tracking-tighter">
+                {dailyProgress === 100 ? 'CONCLUÍDO! 🚀' : `${dailyProgress}% COMPLETO`}
+              </h2>
             </div>
           </div>
 
-          {/* Conteúdo do Treino Ativo */}
+          {/* O Tubo de Progresso */}
+          <div className="h-6 bg-black/50 rounded-full border border-white/5 overflow-hidden relative">
+            {/* O Líquido */}
+            <div 
+              className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(6,182,212,0.6)]"
+              style={{ width: `${dailyProgress}%` }}
+            >
+              <div className="absolute right-0 top-0 h-full w-[2px] bg-white blur-[2px]" />
+            </div>
+          </div>
+          
+          <div className="flex justify-between mt-3 text-xs font-bold text-zinc-500">
+             <span>INÍCIO</span>
+             <span className={dailyProgress === 100 ? 'text-neon-green' : ''}>{completedCount}/{totalExercises} EXERCÍCIOS</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. CONTEÚDO DOS TREINOS */}
+      {trainings.length > 0 ? (
+        <div>
+          {/* NAVEGAÇÃO HORIZONTAL DE TREINOS (Estilo Chips) */}
+          <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide mb-2">
+            {trainings.map((training, index) => {
+               const isActive = activeTrainingTab === index
+               return (
+                <button
+                  key={index}
+                  onClick={() => setActiveTrainingTab(index)}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-full font-bold uppercase text-xs tracking-wider transition-all duration-300 whitespace-nowrap border
+                    ${isActive 
+                      ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-105' 
+                      : 'bg-zinc-900/80 text-zinc-500 border-zinc-800 hover:border-zinc-600'
+                    }
+                  `}
+                >
+                  <Dumbbell className={`w-4 h-4 ${isActive ? 'fill-black' : ''}`} />
+                  {training.name}
+                </button>
+               )
+            })}
+          </div>
+
+          {/* LISTA DE EXERCÍCIOS */}
           {activeTraining && (
-            <div className="card">
-              <div className="flex items-center gap-3 mb-4">
-                <Dumbbell className="w-6 h-6 text-neon-green" />
-                <h4 className="text-xl font-black uppercase">{activeTraining.name}</h4>
-              </div>
-
+            <div className="space-y-4">
               {exercises.length > 0 ? (
-                <div className="space-y-4">
-                  {exercises.map((exercicio, index) => {
-                    const completed = isExerciseCompletedToday(activeTraining.name, index)
-                    const exerciseId = getExerciseId(activeTraining.name, index)
-                    const exerciseData = exerciseInputs[exerciseId] || { weight: '', reps: '' }
-                    
-                    return (
-                      <div
-                        key={index}
-                        className={`bg-zinc-800 border rounded-lg p-4 transition-all ${
-                          completed 
-                            ? 'border-neon-green bg-zinc-800/50' 
-                            : 'border-zinc-700 hover:border-neon-blue'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Botão de Check */}
-                          <button
-                            onClick={() => handleToggleExercise(activeTrainingTab, index)}
-                            disabled={updating}
-                            className={`flex-shrink-0 p-2 rounded-full transition-all mt-1 ${
-                              completed
-                                ? 'bg-neon-green text-white hover:bg-neon-green/80'
-                                : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600 border border-zinc-600'
-                            } ${updating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            title={completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
-                          >
-                            {completed ? (
-                              <CheckCircle2 className="w-6 h-6" />
-                            ) : (
-                              <Circle className="w-6 h-6" />
-                            )}
-                          </button>
+                exercises.map((exercicio, index) => {
+                  const completed = isExerciseCompletedToday(activeTraining.name, index)
+                  const exerciseId = getExerciseId(activeTraining.name, index)
+                  const exerciseData = exerciseInputs[exerciseId] || { weight: '', reps: '' }
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`
+                        relative overflow-hidden rounded-2xl p-5 transition-all duration-300 border group
+                        ${completed 
+                          ? 'bg-emerald-900/10 border-emerald-500/30 opacity-70' 
+                          : 'bg-zinc-900/60 backdrop-blur-sm border-white/5 hover:border-neon-blue/30 hover:bg-zinc-900/80'
+                        }
+                      `}
+                    >
+                      {/* Borda lateral colorida para indicar status */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${completed ? 'bg-emerald-500' : 'bg-zinc-700 group-hover:bg-neon-blue'}`} />
 
-                          {/* Informações do Exercício */}
-                          <div className={`flex-1 min-w-0 ${completed ? 'opacity-75' : ''}`}>
-                            <h5 className={`font-bold mb-2 ${completed ? 'line-through text-gray-400' : 'text-white'}`}>
-                              {exercicio.name}
-                            </h5>
-                            <div className="flex flex-col gap-1 mb-3">
-                              <p className="text-sm text-gray-400">{exercicio.sets}</p>
-                              {exercicio.recommendedWeight && (
-                                <p className="text-xs text-neon-blue font-semibold">
-                                  💪 Recomendado: {exercicio.recommendedWeight}
+                      <div className="flex gap-4">
+                        {/* Checkbox Customizado Grande */}
+                        <button
+                          onClick={() => handleToggleExercise(activeTrainingTab, index)}
+                          disabled={updating}
+                          className={`
+                            flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-300 border-2
+                            ${completed
+                              ? 'bg-emerald-500 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                              : 'bg-black/20 border-zinc-700 hover:border-neon-blue'
+                            }
+                          `}
+                        >
+                           {completed ? <CheckCircle2 className="w-8 h-8 text-white" /> : <div className="w-4 h-4 rounded-full bg-zinc-700 group-hover:bg-neon-blue transition-colors" />}
+                        </button>
+
+                        <div className="flex-1 min-w-0 pt-1">
+                          <div className="flex justify-between items-start mb-2">
+                             <div>
+                                <h4 className={`text-lg font-black uppercase leading-tight ${completed ? 'text-zinc-400 line-through decoration-emerald-500/50' : 'text-white'}`}>
+                                  {exercicio.name}
+                                </h4>
+                                <p className="text-xs text-neon-blue font-bold mt-1 tracking-wide">
+                                  {exercicio.sets} SÉRIES
                                 </p>
-                              )}
-                            </div>
+                             </div>
+                             
+                             {/* Botão de Vídeo (Pequeno e discreto) */}
+                             {exercicio.videoUrl && (
+                                <button 
+                                  onClick={() => handleWatchVideo(exercicio.videoUrl)}
+                                  className="p-2 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+                                >
+                                  <Play className="w-4 h-4 fill-current" />
+                                </button>
+                             )}
+                          </div>
 
-                            {/* Inputs de Carga e Reps */}
-                            <div className="grid grid-cols-2 gap-3 mt-3">
-                              {/* Input de Carga */}
-                              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                                <Weight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                <input
-                                  type="number"
-                                  placeholder="Carga (kg)"
+                          {/* Inputs Estilizados (Displays Digitais) */}
+                          <div className={`grid grid-cols-2 gap-3 mt-4 transition-opacity ${completed ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                             {/* Peso */}
+                             <div className="bg-black/40 rounded-lg p-2 border border-white/5 flex items-center gap-2 focus-within:border-neon-blue/50 transition-colors">
+                                <Weight className="w-4 h-4 text-zinc-500" />
+                                <input 
+                                  type="number" 
+                                  placeholder="Kg"
                                   value={exerciseData.weight || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? '' : e.target.value
-                                    handleInputChange(activeTraining.name, index, 'weight', value)
-                                  }}
-                                  onBlur={() => {
-                                    // Salvar automaticamente ao sair do campo se já está marcado
-                                    saveExerciseData(activeTrainingTab, index)
-                                  }}
-                                  disabled={updating}
-                                  className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-gray-500"
-                                  min="0"
-                                  step="0.5"
+                                  onChange={(e) => handleInputChange(activeTraining.name, index, 'weight', e.target.value)}
+                                  onBlur={() => saveExerciseData(activeTrainingTab, index)}
+                                  className="bg-transparent w-full text-white font-mono text-sm outline-none placeholder-zinc-700"
                                 />
-                                <span className="text-xs text-gray-500">kg</span>
-                              </div>
-
-                              {/* Input de Reps */}
-                              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
-                                <Repeat className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                <input
-                                  type="number"
+                             </div>
+                             
+                             {/* Repetições */}
+                             <div className="bg-black/40 rounded-lg p-2 border border-white/5 flex items-center gap-2 focus-within:border-purple-500/50 transition-colors">
+                                <Repeat className="w-4 h-4 text-zinc-500" />
+                                <input 
+                                  type="number" 
                                   placeholder="Reps"
                                   value={exerciseData.reps || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? '' : e.target.value
-                                    handleInputChange(activeTraining.name, index, 'reps', value)
-                                  }}
-                                  onBlur={() => {
-                                    // Salvar automaticamente ao sair do campo se já está marcado
-                                    saveExerciseData(activeTrainingTab, index)
-                                  }}
-                                  disabled={updating}
-                                  className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-gray-500"
-                                  min="0"
-                                  step="1"
+                                  onChange={(e) => handleInputChange(activeTraining.name, index, 'reps', e.target.value)}
+                                  onBlur={() => saveExerciseData(activeTrainingTab, index)}
+                                  className="bg-transparent w-full text-white font-mono text-sm outline-none placeholder-zinc-700"
                                 />
-                              </div>
-                            </div>
+                             </div>
                           </div>
-
-                          {/* Botão de Vídeo */}
-                          <div className="flex-shrink-0">
-                            {exercicio.videoUrl && exercicio.videoUrl.trim() ? (
-                              <button
-                                onClick={() => handleWatchVideo(exercicio.videoUrl)}
-                                className="btn-secondary flex items-center gap-2"
-                              >
-                                <Play className="w-4 h-4" />
-                                Ver Vídeo
-                              </button>
-                            ) : (
-                              <span className="text-xs text-gray-500">Sem vídeo</span>
-                            )}
-                          </div>
+                          
+                          {exercicio.recommendedWeight && (
+                            <p className="text-[10px] text-zinc-500 mt-2 text-right">
+                              Meta: <span className="text-white">{exercicio.recommendedWeight}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+                  )
+                })
               ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <p>Nenhum exercício cadastrado neste treino</p>
+                <div className="text-center py-12 bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-800">
+                  <p className="text-zinc-500">Nenhum exercício neste treino.</p>
                 </div>
               )}
             </div>
           )}
         </div>
       ) : (
-        <div className="card text-center py-12">
-          <Dumbbell className="w-16 h-16 text-gray-600 mx-auto mb-4 opacity-50" />
-          <p className="text-gray-400">Nenhum treino cadastrado ainda</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Aguarde o Personal criar seu plano personalizado
-          </p>
+        <div className="text-center py-20 bg-zinc-900/20 rounded-3xl border border-white/5">
+          <Dumbbell className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Sem plano ativo</h3>
+          <p className="text-zinc-500">Aguarde seu personal liberar o treino.</p>
         </div>
       )}
 
-      {/* Video Player Modal */}
+      {/* Video Modal */}
       {selectedVideo && (
         <VideoPlayer
           videoUrl={selectedVideo}
