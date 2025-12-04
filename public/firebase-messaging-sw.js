@@ -60,7 +60,7 @@ messaging.onBackgroundMessage((payload) => {
     body: notificationBody,
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
-    tag: payload.data?.messageId || payload.data?.senderId || `apexfit-${Date.now()}`,
+    tag: payload.data?.messageId || payload.data?.senderId || `Immersion Fit-${Date.now()}`,
     requireInteraction: false,
     silent: false,
     data: {
