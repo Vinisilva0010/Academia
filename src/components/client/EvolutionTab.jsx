@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, Scale, Calendar, Plus, Loader2, AlertCircle, X, History } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToWeightHistory, addWeightRecord } from '../../utils/weightHistory'
-
+import { useLanguage } from '../../contexts/LanguageContext'
 export default function EvolutionTab() {
-  // --- LÓGICA (MANTIDA 100% ORIGINAL) ---
+  const { t } = useLanguage()
   const { currentUser } = useAuth()
   const [weightHistory, setWeightHistory] = useState([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -67,27 +67,28 @@ export default function EvolutionTab() {
     return ((weight - minWeight) / range) * 100
   }
 
-  // --- RENDERIZAÇÃO VISUAL (PREMIUM) ---
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700">
       
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          {/* TÍTULO TRADUZIDO */}
           <h3 className="text-2xl font-black uppercase text-white tracking-tighter">
-            EVOLUÇÃO FÍSICA
+            {t('evolution', 'title')}
           </h3>
-          <p className="text-zinc-400 text-sm">Análise de dados corporais.</p>
+          {/* SUBTÍTULO TRADUZIDO */}
+          <p className="text-zinc-400 text-sm">{t('evolution', 'subtitle')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="group flex items-center gap-2 bg-neon-blue text-black px-4 py-2 rounded-xl font-bold hover:bg-white transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_20px_rgba(255,255,255,0.6)]"
         >
           <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
-          <span className="hidden sm:inline">NOVO REGISTRO</span>
+          {/* TEXTO DO BOTÃO TRADUZIDO */}
+          <span className="hidden sm:inline">{t('evolution', 'newRecord')}</span>
         </button>
       </div>
-
       {/* Main Content */}
       <div className="space-y-6">
         
@@ -100,7 +101,8 @@ export default function EvolutionTab() {
             <div className="relative z-10">
               <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-neon-blue" />
-                Curva de Progresso
+                
+                {t('evolution', 'progressCurve')}
               </h4>
 
               {/* Área do Gráfico */}
@@ -140,13 +142,14 @@ export default function EvolutionTab() {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="py-20 text-center bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800">
-            <Scale className="w-16 h-16 text-zinc-700 mx-auto mb-4 animate-pulse" />
-            <p className="text-zinc-400 font-bold">Nenhum dado coletado</p>
-            <p className="text-sm text-zinc-600 mt-2">Inicie seu monitoramento hoje.</p>
-          </div>
-        )}
+       ) : (
+        <div className="py-20 text-center bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800">
+          <Scale className="w-16 h-16 text-zinc-700 mx-auto mb-4 animate-pulse" />
+          {/* MENSAGENS DE VAZIO TRADUZIDAS */}
+          <p className="text-zinc-400 font-bold">{t('evolution', 'noData')}</p>
+          <p className="text-sm text-zinc-600 mt-2">{t('evolution', 'startTracking')}</p>
+        </div>
+      )}
 
         {/* ESTATÍSTICAS (HUD) */}
         {weightHistory.length > 0 && (
@@ -157,7 +160,7 @@ export default function EvolutionTab() {
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Scale className="w-12 h-12 text-neon-blue" />
               </div>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Peso Atual</p>
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">{t('evolution', 'currentWeight')}</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-white font-mono">
                   {weightHistory[weightHistory.length - 1]?.weight}
@@ -166,12 +169,13 @@ export default function EvolutionTab() {
               </div>
             </div>
 
-            {/* Card Diferença */}
-            <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
+        {/* Card Diferença */}
+        <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <TrendingUp className="w-12 h-12 text-purple-500" />
               </div>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Balanço Total</p>
+              {/* TRADUÇÃO AQUI: */}
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">{t('evolution', 'totalDiff')}</p>
               <div className={`flex items-baseline gap-1 font-mono text-3xl font-black ${
                 weightHistory[0]?.weight > weightHistory[weightHistory.length - 1]?.weight
                   ? 'text-emerald-400' // Perdeu peso (Bom)
@@ -194,11 +198,13 @@ export default function EvolutionTab() {
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Calendar className="w-12 h-12 text-emerald-500" />
               </div>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Registros</p>
+              {/* TRADUÇÃO AQUI: */}
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">{t('evolution', 'records')}</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-white font-mono">
                   {weightHistory.length}
                 </span>
+                {/* TRADUÇÃO MANUAL (Opcional, ou pode adicionar no dicionário depois) */}
                 <span className="text-sm font-bold text-zinc-500">medições</span>
               </div>
             </div>
@@ -210,7 +216,8 @@ export default function EvolutionTab() {
           <div className="bg-zinc-900/40 rounded-2xl border border-zinc-800 overflow-hidden">
             <div className="p-4 border-b border-zinc-800 flex items-center gap-2">
                <History className="w-4 h-4 text-zinc-400" />
-               <h4 className="text-sm font-bold text-white uppercase">Log de Registros</h4>
+               {/* TRADUÇÃO AQUI: */}
+               <h4 className="text-sm font-bold text-white uppercase">{t('evolution', 'log')}</h4>
             </div>
             <div className="max-h-64 overflow-y-auto custom-scrollbar">
               {weightHistory.slice().reverse().map((entry, index) => (
@@ -245,7 +252,8 @@ export default function EvolutionTab() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-neon-blue via-purple-500 to-neon-blue" />
 
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-black uppercase text-white">Nova Medição</h3>
+              {/* TRADUÇÃO AQUI: */}
+              <h3 className="text-xl font-black uppercase text-white">{t('evolution', 'modalTitle')}</h3>
               <button
                 onClick={() => {
                   setShowAddModal(false)
@@ -260,8 +268,9 @@ export default function EvolutionTab() {
 
             <form onSubmit={handleAddWeight} className="space-y-6">
               <div className="space-y-2">
+                {/* TRADUÇÃO AQUI: */}
                 <label className="text-xs font-bold text-neon-blue uppercase tracking-wider">
-                  Peso Atual (kg)
+                  {t('evolution', 'currentWeight')} (kg)
                 </label>
                 <div className="relative">
                     <input
@@ -292,7 +301,8 @@ export default function EvolutionTab() {
                   className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold uppercase py-4 rounded-xl transition-colors text-sm"
                   disabled={loading}
                 >
-                  Cancelar
+                  {/* TRADUÇÃO AQUI: */}
+                  {t('evolution', 'cancel')}
                 </button>
                 <button
                   type="submit"
@@ -302,7 +312,8 @@ export default function EvolutionTab() {
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <>SALVAR <Plus className="w-4 h-4" /></>
+                    /* TRADUÇÃO AQUI: */
+                    <>{t('evolution', 'save')} <Plus className="w-4 h-4" /></>
                   )}
                 </button>
               </div>

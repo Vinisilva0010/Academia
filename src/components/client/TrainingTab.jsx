@@ -10,9 +10,10 @@ import {
 } from '../../utils/workoutLogs'
 import VideoPlayer from '../VideoPlayer'
 import StreakCalendar from './StreakCalendar'
+import { useLanguage } from '../../contexts/LanguageContext' 
 
 export default function TrainingTab() {
-  // --- LÓGICA (MANTIDA 100% ORIGINAL) ---
+  const { t } = useLanguage()
   const { currentUser } = useAuth()
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -212,7 +213,8 @@ export default function TrainingTab() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="w-12 h-12 text-neon-blue animate-spin mb-4" />
-        <p className="text-zinc-500 font-bold animate-pulse">CARREGANDO SEU PLANO...</p>
+        {/* TROQUE O TEXTO FIXO POR ISSO: */}
+        <p className="text-zinc-500 font-bold animate-pulse">{t('general', 'loading')}</p>
       </div>
     )
   }
@@ -234,10 +236,12 @@ export default function TrainingTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
+           
             <h3 className="text-2xl font-black italic text-white tracking-tighter">
-              HOJE É DIA DE TREINO
+              {t('training', 'title')}
             </h3>
-            <p className="text-zinc-400 text-sm">Supere seus limites.</p>
+            
+            <p className="text-zinc-400 text-sm">{t('training', 'subtitle')}</p>
           </div>
           <Trophy className="w-8 h-8 text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
         </div>
@@ -253,11 +257,15 @@ export default function TrainingTab() {
         <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 to-purple-500/5 pointer-events-none" />
         
         <div className="p-6 relative z-10">
-          <div className="flex justify-between items-end mb-4">
+        <div className="flex justify-between items-end mb-4">
             <div>
-              <p className="text-[10px] font-black tracking-[0.2em] text-neon-blue uppercase mb-1">Status do Treino</p>
+              {/* TROQUE 'Meta do Dia' POR: */}
+              <p className="text-[10px] font-black tracking-[0.2em] text-neon-blue uppercase mb-1">
+                {t('training', 'todayGoal')}
+              </p>
+              {/* TROQUE A MENSAGEM DE STATUS POR: */}
               <h2 className="text-3xl font-black italic text-white tracking-tighter">
-                {dailyProgress === 100 ? 'CONCLUÍDO! 🚀' : `${dailyProgress}% COMPLETO`}
+                {dailyProgress === 100 ? t('training', 'completed') : t('training', 'inProgress')}
               </h2>
             </div>
           </div>
@@ -272,10 +280,12 @@ export default function TrainingTab() {
               <div className="absolute right-0 top-0 h-full w-[2px] bg-white blur-[2px]" />
             </div>
           </div>
-          
           <div className="flex justify-between mt-3 text-xs font-bold text-zinc-500">
-             <span>INÍCIO</span>
-             <span className={dailyProgress === 100 ? 'text-neon-green' : ''}>{completedCount}/{totalExercises} EXERCÍCIOS</span>
+             
+             <span>{t('training', 'start')}</span>
+             <span className={dailyProgress === 100 ? 'text-neon-green' : ''}>
+               {completedCount}/{totalExercises} {t('training', 'exercises')}
+             </span>
           </div>
         </div>
       </div>
@@ -414,13 +424,14 @@ export default function TrainingTab() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="text-center py-20 bg-zinc-900/20 rounded-3xl border border-white/5">
-          <Dumbbell className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Sem plano ativo</h3>
-          <p className="text-zinc-500">Aguarde seu personal liberar o treino.</p>
-        </div>
-      )}
+     ) : (
+      <div className="text-center py-20 bg-zinc-900/20 rounded-3xl border border-white/5">
+        <Dumbbell className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+        
+        <h3 className="text-xl font-bold text-white mb-2">{t('training', 'noPlan')}</h3>
+        <p className="text-zinc-500">{t('training', 'waitPlan')}</p>
+      </div>
+    )}
 
       {/* Video Modal */}
       {selectedVideo && (

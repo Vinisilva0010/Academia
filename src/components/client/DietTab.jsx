@@ -3,9 +3,10 @@ import { Clock, Loader2, Utensils, CheckCircle2, Circle, Apple, Flame, Wheat, Be
 import { useAuth } from '../../contexts/AuthContext'
 import { getStudentPlan } from '../../utils/plans'
 import { subscribeToMealLog, markMealAsCompleted, unmarkMealAsCompleted, isMealCompletedToday } from '../../utils/mealLogs'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function DietTab() {
-  // --- LÓGICA (MANTIDA 100% ORIGINAL) ---
+  const { t } = useLanguage()
   const { currentUser } = useAuth()
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -61,7 +62,8 @@ export default function DietTab() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="w-12 h-12 text-neon-blue animate-spin mb-4" />
-        <p className="text-zinc-500 font-bold animate-pulse">CARREGANDO DIETA...</p>
+       
+        <p className="text-zinc-500 font-bold animate-pulse">{t('general', 'loading')}</p>
       </div>
     )
   }
@@ -109,15 +111,20 @@ export default function DietTab() {
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
+          {/* TÍTULO TRADUZIDO */}
           <h3 className="text-2xl font-black uppercase text-white tracking-tighter">
-            PLANO ALIMENTAR
+            {t('diet', 'title')}
           </h3>
-          <p className="text-zinc-400 text-sm">Combustível para seus resultados.</p>
+          {/* SUBTÍTULO TRADUZIDO */}
+          <p className="text-zinc-400 text-sm">{t('diet', 'subtitle')}</p>
         </div>
         
         {/* Contador Circular Pequeno */}
         <div className="flex flex-col items-end">
-           <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">META DIÁRIA</span>
+           {/* TEXTO 'META DIÁRIA' TRADUZIDO */}
+           <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+             {t('diet', 'dailyGoal')}
+           </span>
            <span className={`text-2xl font-black ${progressPercentage === 100 ? 'text-neon-green' : 'text-white'}`}>
              {completedCount}/{totalMeals}
            </span>
@@ -251,13 +258,15 @@ export default function DietTab() {
             )
           })}
         </div>
-      ) : (
-        <div className="text-center py-20 bg-zinc-900/20 rounded-3xl border border-white/5">
-          <Utensils className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Dieta não encontrada</h3>
-          <p className="text-zinc-500">Aguarde seu personal montar seu plano.</p>
-        </div>
-      )}
-    </div>
+    ) : (
+      <div className="text-center py-20 bg-zinc-900/20 rounded-3xl border border-white/5">
+        <Utensils className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+        
+        <h3 className="text-xl font-bold text-white mb-2">{t('diet', 'empty')}</h3>
+        
+        <p className="text-zinc-500">{t('diet', 'waitDiet')}</p>
+      </div>
+    )}
+  </div>
   )
 }

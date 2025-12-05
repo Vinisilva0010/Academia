@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Users, AlertCircle, CheckCircle, Mail, User, Edit, Trash2, Loader2 } from 'lucide-react'
-import { getAllStudents, deleteStudent } from '../../utils/admin'
+import { Users, AlertCircle, CheckCircle, Mail, User, Edit, Trash2, Loader2, RotateCcw } from 'lucide-react'
+import { getAllStudents, deleteStudent, restoreStudent } from '../../utils/admin'
 import Avatar from '../Avatar'
 import { useNavigate } from 'react-router-dom'
 
@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 export default function StudentList({ onSelectStudent, onEditPlan }) {
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showDeleted, setShowDeleted] = useState(false) // false = Ativos, true = Lixeira
   const [deletingId, setDeletingId] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [error, setError] = useState('')
@@ -59,8 +60,16 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
     }
   }
 
-  const pendingStudents = students.filter(s => s.status === 'pending')
-  const activeStudents = students.filter(s => s.status === 'active')
+  // Separa quem está excluído
+  const deletedStudents = students.filter(s => s.status === 'deleted')
+  const normalStudents = students.filter(s => s.status !== 'deleted')
+
+  // Totais (baseado apenas nos ativos)
+  const pendingStudents = normalStudents.filter(s => s.status === 'pending')
+  const activeStudents = normalStudents.filter(s => s.status === 'active')
+
+  // Lista que vai aparecer na tela
+  const visibleStudents = showDeleted ? deletedStudents : normalStudents
 
   if (loading) {
     return (
@@ -104,7 +113,21 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
           </div>
         </div>
       </div>
-
+{/* ABAS DE NAVEGAÇÃO */}
+<div className="flex gap-6 border-b border-zinc-800 mb-6">
+        <button
+          onClick={() => setShowDeleted(false)}
+          className={`pb-4 text-sm font-black uppercase border-b-2 transition-all ${!showDeleted ? 'border-emerald-500 text-emerald-500' : 'border-transparent text-zinc-500'}`}
+        >
+          Ativos
+        </button>
+        <button
+          onClick={() => setShowDeleted(true)}
+          className={`pb-4 text-sm font-black uppercase border-b-2 transition-all ${showDeleted ? 'border-red-500 text-red-500' : 'border-transparent text-zinc-500'}`}
+        >
+          Lixeira ({deletedStudents.length})
+        </button>
+      </div>
       {/* Lista de Alunos */}
       <div>
         <h3 className="text-2xl font-black uppercase mb-4">LISTA DE ALUNOS</h3>
@@ -116,9 +139,10 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {students.map((student) => {
+          {visibleStudents.map((student) => {
               const isPending = student.status === 'pending'
               const isActive = student.status === 'active'
+              const isDeleted = student.status === 'deleted'
               
               return (
                 <div
@@ -148,6 +172,21 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
                       {isPending && (
                         <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
                       )}
+                      {/* BLOCO CONDICIONAL: RESTAURAR OU EXCLUIR */}
+                    {isDeleted ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if(window.confirm('Restaurar este aluno?')) {
+                             restoreStudent(student.uid).then(() => loadStudents())
+                          }
+                        }}
+                        className="p-2 bg-emerald-900/20 hover:bg-emerald-900/40 border border-emerald-800/50 rounded-lg text-emerald-400 transition-all hover:scale-110"
+                        title="Restaurar Aluno"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    ) : (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -159,6 +198,7 @@ export default function StudentList({ onSelectStudent, onEditPlan }) {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    )}
                     </div>
                   </div>
 

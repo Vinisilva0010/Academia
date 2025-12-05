@@ -3,14 +3,17 @@ import { Dumbbell, UtensilsCrossed, TrendingUp } from 'lucide-react'
 import TrainingTab from './TrainingTab'
 import DietTab from './DietTab'
 import EvolutionTab from './EvolutionTab'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function DashboardTabs() {
   const [activeTab, setActiveTab] = useState('treino')
+  const { t } = useLanguage() // <--- ADICIONE ISSO
 
+  
   const tabs = [
-    { id: 'treino', label: 'Treino', icon: Dumbbell },
-    { id: 'dieta', label: 'Dieta', icon: UtensilsCrossed },
-    { id: 'evolucao', label: 'Evolução', icon: TrendingUp },
+    { id: 'treino', label: t('tabs', 'workout'), icon: Dumbbell },
+    { id: 'dieta', label: t('tabs', 'diet'), icon: UtensilsCrossed },
+    { id: 'evolucao', label: t('tabs', 'evolution'), icon: TrendingUp },
   ]
 
   return (
